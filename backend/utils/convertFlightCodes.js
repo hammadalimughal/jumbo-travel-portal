@@ -1,13 +1,23 @@
 const airportsData = require("aircodes");
 
+// const passengerFormat = {
+//     MR: "Adult Male",
+//     MRS: "Married Female",
+//     MS: "Adult Female",
+//     MISS: "Female (usually under 18)",
+//     CHD: "Child",
+//     INF: "Infant",
+//     MSTR: "Male Child"
+// };
+
 const passengerFormat = {
-    MR: "Adult Male",
-    MRS: "Married Female",
-    MS: "Adult Female",
-    MISS: "Female (usually under 18)",
-    CHD: "Child",
-    INF: "Infant",
-    MSTR: "Male Child"
+    MR: { label: "Adult Male", category: "adult" },
+    MRS: { label: "Married Female", category: "adult" },
+    MS: { label: "Adult Female", category: "adult" },
+    MISS: { label: "Female (usually under 18)", category: "children" },
+    MSTR: { label: "Male Child", category: "children" },
+    CHD: { label: "Child", category: "children" },
+    INF: { label: "Infant", category: "infant" }
 };
 
 const passengerCodes = Object.keys(passengerFormat);
@@ -29,7 +39,7 @@ function formatToISO(gdsDate, gdsTime) {
     const day = parseInt(gdsDate.substring(0, 2));
     const monthStr = gdsDate.substring(2).toUpperCase();
     const month = months[monthStr];
-    
+
     const now = new Date();
     let year = now.getFullYear();
 
@@ -50,7 +60,7 @@ function parsePassengerLine(line) {
     const indexMatch = line.match(/^(\d+)[\.\s]?/);
     const passengerNumber = indexMatch ? Number(indexMatch[1]) : null;
     const titleMatch = line.match(new RegExp(`\\b(${passengerCodes.join('|')})\\b`));
-    
+
     if (!titleMatch) return null;
 
     const title = titleMatch[1];
@@ -103,7 +113,7 @@ function parseFlightLine(line) {
     // \s+([A-Z]{2}\d)      -> Status (HK4)
     // \s+(\d{4})\s+(\d{4}) -> Times
     const flightRegex = /^\s*(\d+)[\.\s]+([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3})\s+(\d)\s+([A-Z]{6})\s+([A-Z]{2}\d)\s+(\d{4})\s+(\d{4})/i;
-    
+
     const match = line.match(flightRegex);
     if (!match) return null;
 
@@ -132,7 +142,7 @@ const convertFlightCodes = (rawData) => {
     const result = { passengers: [], flights: [] };
 
     segments.forEach((segment) => {
-        console.log(`${segment} ${isPassenger(segment) ? 'Passenger': isFlight(segment) ? 'Flight' : 'Unspecified'}`)
+        console.log(`${segment} ${isPassenger(segment) ? 'Passenger' : isFlight(segment) ? 'Flight' : 'Unspecified'}`)
         if (isPassenger(segment)) {
             const p = parsePassengerLine(segment);
             if (p) result.passengers.push(p);

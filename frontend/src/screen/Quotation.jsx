@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -7,11 +7,16 @@ import { API_BASE } from '../config/data';
 const { Title } = Typography;
 
 const Quotation = ({ isDark }) => {
-  const [passengerType, setPassengerType] = useState({
+  const [price, setPrice] = useState({
     adults: 0,
     infant: 0,
     children: 0
   })
+  const [passengerType, setPassengerType] = useState({
+    adults: 0,
+    infant: 0, // Keep this consistent throughout
+    children: 0
+  });
   const [rawCodes, setRawCodes] = useState('')
   const [processing, setProcessing] = useState(false)
   const [form] = Form.useForm();
@@ -22,6 +27,16 @@ const Quotation = ({ isDark }) => {
     label: i.toString(),
     value: i,
   }));
+
+  useEffect(() => {
+    const total =
+      (price.adults * passengerType.adults) +
+      (price.children * passengerType.children) +
+      (price.infant * passengerType.infant);
+
+    // This physically updates the value shown in the "totalPrice" InputNumber
+    form.setFieldsValue({ totalPrice: total });
+  }, [price, passengerType, form]);
 
   const rawCodesParser = async () => {
     if (!rawCodes.trim()) {
@@ -52,9 +67,27 @@ const Quotation = ({ isDark }) => {
 
         // Set passenger names to form
         form.setFieldValue('passengers_names', passengerNames);
-
+        // setPassengerType({
+        //   adults: passengers.filter(item => item.type.category == 'adult').length,
+        //   infant: passengers.filter(item => item.type.category == 'children').length,
+        //   children: passengers.filter(item => item.type.category == 'infant').length
+        // })
         // Set number of adults (rough estimate - count passengers)
-        form.setFieldValue('adults', passengers.length);
+        const infantCount = passengers.filter(item => item.type.category === 'infant').length;
+
+        // 1. Update the Form (for the UI)
+        form.setFieldsValue({
+          adults: adultCount,
+          children: childCount,
+          infants: infantCount
+        });
+
+        // 2. Update the State (for the Pricing Math)
+        setPassengerType({
+          adults: adultCount,
+          children: childCount,
+          infant: infantCount // Match your state key name
+        });
 
         // Parse and set flights
         if (flights && flights.length > 0) {
@@ -227,16 +260,19 @@ const Quotation = ({ isDark }) => {
                 label="Passengers Names"
                 name="passengers_names"
               >
-                <Input.TextArea rows={3} placeholder="Auto-populated" readOnly />
+                <Input.TextArea rows={3} placeholder="Auto-populated" />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
               <Form.Item
                 label="Adults"
                 name="adults"
-                initialValue={1}
+                initialValue={0}
               >
-                <Select options={passengerOptions} />
+                <Select
+                  onChange={(val) => setPassengerType({ ...passengerType, adults: val })}
+                  options={passengerOptions}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -245,7 +281,10 @@ const Quotation = ({ isDark }) => {
                 name="children"
                 initialValue={0}
               >
-                <Select options={passengerOptions} />
+                <Select
+                  onChange={(val) => setPassengerType({ ...passengerType, children: val })}
+                  options={passengerOptions}
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -254,7 +293,10 @@ const Quotation = ({ isDark }) => {
                 name="infants"
                 initialValue={0}
               >
-                <Select options={passengerOptions} />
+                <Select
+                  onChange={(val) => setPassengerType({ ...passengerType, infant: val })}
+                  options={passengerOptions}
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -413,33 +455,65 @@ const Quotation = ({ isDark }) => {
         </Card>
 
         {/* Pricing */}
-        <Card style={cardStyle} title="Pricing" size="small">
+        <Card title="Pricing" size="small" style={{marginBottom: 24}}>
           <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={12}>
+            {/* Adult Price */}
+            <Col xs={24} sm={8}>
               <Form.Item
-                label="Total Package Price (£)"
-                name="total_price"
-                rules={[{ required: true, message: 'Please enter total price' }]}
+                label="Adult Price (£)"
+                name="priceAdult"
+                rules={[{ required: passengerType.adults, message: 'Required' }]}
               >
                 <InputNumber
-                  step={0.01}
                   min={0}
+                  step={0.01}
                   style={{ width: '100%' }}
-                  placeholder="0.00"
+                  onChange={val => setPrice({ ...price, adults: Number(val) })}
                 />
               </Form.Item>
             </Col>
-            <Col xs={24} sm={12} md={12}>
+
+            {/* Child Price - FIXED: Moved onChange to InputNumber */}
+            <Col xs={24} sm={8}>
               <Form.Item
-                label="Price Per Person (£)"
-                name="price_per_person"
-                rules={[{ required: true, message: 'Please enter price per person' }]}
+                label="Child Price (£)"
+                name="priceChild"
+                rules={[{ required: passengerType.children, message: 'Required' }]}
               >
                 <InputNumber
-                  step={0.01}
                   min={0}
+                  step={0.01}
                   style={{ width: '100%' }}
-                  placeholder="0.00"
+                  onChange={val => setPrice({ ...price, children: Number(val) })}
+                />
+              </Form.Item>
+            </Col>
+
+            {/* Infant Price */}
+            <Col xs={24} sm={8}>
+              <Form.Item
+                label="Infant Price (£)"
+                name="priceInfant"
+                rules={[{ required: passengerType.infant, message: 'Required' }]}
+              >
+                <InputNumber
+                  min={0}
+                  step={0.01}
+                  style={{ width: '100%' }}
+                  onChange={val => setPrice({ ...price, infant: Number(val) })}
+                />
+              </Form.Item>
+            </Col>
+
+            {/* Total Price - READ ONLY suggested */}
+            <Col span={24}>
+              <Form.Item
+                label="Total Package Price (£)"
+                name="totalPrice"
+              >
+                <InputNumber
+                  readOnly
+                  style={{ width: '100%' }}
                 />
               </Form.Item>
             </Col>
