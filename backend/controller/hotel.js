@@ -6,6 +6,7 @@ const Hotel = require('../models/Hotel');
 router.get('/getall', async (req, res) => {
     try {
         const hotels = await Hotel.find().sort({ name: 1 });
+        console.log(hotels)
         res.json({ success: true, data: hotels });
     } catch (error) {
         console.error(error);
