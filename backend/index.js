@@ -36,6 +36,8 @@ app.use((req,res) => {
   res.sendFile(path.resolve('./public/index.html'))
 })
 
-app.listen(PORT, () => {
-  console.log(`App is live on http://localhost:${PORT}/`);
-});
+// app.listen(PORT, () => {
+//   console.log(`App is live on http://localhost:${PORT}/`);
+// });
+
+module.exports = app;
