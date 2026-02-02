@@ -16,7 +16,7 @@ app.use(cors({
 // 2. Body Parsing (Using built-in Express methods)
 app.use(express.json({ limit: '10mb' })); 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(cookieParser());
 
