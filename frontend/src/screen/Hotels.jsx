@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Flex, Form, Input, Modal, Popconfirm, Space, Table, message } from 'antd';
+import { Button, Flex, Form, Input, Modal, Popconfirm, Select, Space, Table, message } from 'antd';
 import { FiEdit2, FiTrash } from 'react-icons/fi';
 import { useDataContext } from '../context/DataContext';
 
@@ -66,6 +66,14 @@ const Hotels = () => {
             title: 'Name',
             dataIndex: 'name',
             key: 'name',
+        },
+        {
+            title: 'Hotel Type',
+            dataIndex: 'hotelType',
+            key: 'hotelType',
+            render: (hotelType) => (
+                <span style={{whiteSpace: 'nowrap'}}>{hotelType ? `${hotelType} Stars` : 'N/A'}</span>
+            )
         },
         {
             title: 'City',
@@ -155,6 +163,21 @@ const Hotels = () => {
                         rules={[{ required: true, message: 'Please enter city' }]}
                     >
                         <Input placeholder="City" />
+                    </Form.Item>
+                    <Form.Item
+                        label="Hotel Type"
+                        name="hotelType"
+                        rules={[{ required: true, message: 'Please enter hotel type' }]}
+                    >
+                        <Select
+                            options={[
+                                { value: 1, label: '1 Star' },
+                                { value: 2, label: '2 Star' },
+                                { value: 3, label: '3 Star' },
+                                { value: 4, label: '4 Star' },
+                                { value: 5, label: '5 Star' },
+                            ]}
+                        />
                     </Form.Item>
                     <Form.Item
                         label="Country"

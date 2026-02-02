@@ -16,7 +16,7 @@ router.get('/getall', async (req, res) => {
 // Create hotel
 router.post('/create', async (req, res) => {
     try {
-        const { name, city, country, location, phone, email } = req.body;
+        const { name, city, country, location,hotelType, phone, email } = req.body;
         
         if (!name) {
             return res.status(400).json({ success: false, error: 'Hotel name is required' });
@@ -29,12 +29,16 @@ router.post('/create', async (req, res) => {
         if (!country) {
             return res.status(400).json({ success: false, error: 'Country is required' });
         }
+        if (!hotelType) {
+            return res.status(400).json({ success: false, error: 'Hotel Type is required' });
+        }
 
         const hotel = await Hotel.create({
             name,
             city,
             country,
             location,
+            hotelType,
             phone,
             email,
         });
@@ -49,7 +53,7 @@ router.post('/create', async (req, res) => {
 // Update hotel
 router.put('/:id', async (req, res) => {
     try {
-        const { name, city, country, location, phone, email } = req.body;
+        const { name, city, country, location,hotelType, phone, email } = req.body;
         
         const hotel = await Hotel.findById(req.params.id);
         if (!hotel) {
@@ -63,6 +67,7 @@ router.put('/:id', async (req, res) => {
         if (hotel.location !== location) changes.push(`Location: '${hotel.location}' -> '${location}'`);
         if (hotel.phone !== phone) changes.push(`Phone: '${hotel.phone}' -> '${phone}'`);
         if (hotel.email !== email) changes.push(`Email: '${hotel.email}' -> '${email}'`);
+        if (hotel.hotelType !== hotelType) changes.push(`Hotel Type: '${hotel.hotelType}' -> '${hotelType}'`);
 
         hotel.name = name;
         hotel.city = city;
@@ -70,6 +75,7 @@ router.put('/:id', async (req, res) => {
         hotel.location = location;
         hotel.phone = phone;
         hotel.email = email;
+        hotel.hotelType = hotelType;
 
         await hotel.save();
         

@@ -117,7 +117,7 @@ const Quotation = ({ isDark }) => {
 
   const hotelOptions = hotels.map((item) => ({
     value: 1,
-    label: item.name,
+    label: `${item.name} ${item.hotelType ? ` - ${item.hotelType} Stars` : ''}`,
     location: `${item.city}, ${item.country}`,
   }));
 
@@ -543,8 +543,18 @@ const Quotation = ({ isDark }) => {
               <Form.Item
                 label="Cancellation Policy"
                 name="cancellation_policy"
+                initialValue={`Flight Booking Terms & conditions:-
+• Please carefully check the passenger name(s) and flight details provided above, Passenger name(s) must exactly match the passport. We are not responsible for any issues arising from incorrect details. name change not allowed at all.
+• Once a deposit or full payment is made, tickets will be issued strictly based on the details provided at the time of booking.ticket is non refundable . Date changes- if permitted, are subject to Airline fare rules and policies,  Applicable date-change penalties, Any fare difference, which must be paid by the passenger. Please note that some airlines do not allow date changes at all.
+• The deposit is strictly non-refundable and is used to cover airline cancellation and administrative charges. By making a deposit or full payment, you confirm that you have read, understood, and agreed to all the above terms and conditions.
+• Hotel Booking Terms & Conditions:-
+• All non-refundable and non-changeable bookings are final. Once confirmed, these bookings cannot be cancelled, amended, or refunded under any circumstances, including but not limited to no-shows, early departures, or changes in travel plans.Some hotels may allow cancellations provided they are made at least 7 days prior to the check-in date. If a cancellation is permitted, cancellation charges may apply as per the hotel’s policy.Any cancellation made within 7 days of check-in may result in full or partial charges, In all cases where cancellation or amendment is allowed, an administration fee of £75 per booking will be charged. No refunds or amendments will be provided for cancellations due to circumstances beyond your control, including flight cancellations, visa issues, illness, or personal emergencies, unless otherwise stated by the hotel. we always recommend you take travel insurance. By confirming a booking, you acknowledge that you have read, understood, and agreed to these Terms & Conditions.
+
+• ravel Document- this is customer responsibility to check their visa status, passport validity or requirement visa / including transit visa for their travel destination before booking the flights. contact the relevant embassy or visa consulate .
+                  `} 
               >
-                <Input.TextArea rows={3} placeholder="Enter cancellation policy" />
+                <Input.TextArea 
+                  rows={3} placeholder="Enter cancellation policy" />
               </Form.Item>
             </Col>
           </Row>

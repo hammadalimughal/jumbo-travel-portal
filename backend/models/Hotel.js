@@ -6,6 +6,15 @@ const hotelSchema = new Schema({
         required: true,
         trim: true,
     },
+    // New Field Added Here
+    hotelType: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5,
+        // Optional: rounds 4.5 to 5
+        set: v => Math.round(v) 
+    },
     city: {
         type: String,
         required: true,
