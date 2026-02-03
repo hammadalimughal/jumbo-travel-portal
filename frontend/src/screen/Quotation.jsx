@@ -73,6 +73,8 @@ const Quotation = ({ isDark }) => {
         //   children: passengers.filter(item => item.type.category == 'infant').length
         // })
         // Set number of adults (rough estimate - count passengers)
+        const adultCount = passengers.filter(item => item.type.category === 'adult').length;
+        const childCount = passengers.filter(item => item.type.category === 'children').length;
         const infantCount = passengers.filter(item => item.type.category === 'infant').length;
 
         // 1. Update the Form (for the UI)
