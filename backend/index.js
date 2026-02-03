@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 6947;
 
 // 1. CORS Setup
 app.use(cors({
-  origin: "http://localhost:5173", // allow Vite frontend
+  origin: "http://localhost:5174", // allow Vite frontend
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
@@ -36,8 +36,9 @@ app.use((req,res) => {
   res.sendFile(path.resolve('./public/index.html'))
 })
 
-// app.listen(PORT, () => {
-//   console.log(`App is live on http://localhost:${PORT}/`);
-// });
-
 module.exports = app;
+
+// Only listen if not running on Vercel (optional for local dev)
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
