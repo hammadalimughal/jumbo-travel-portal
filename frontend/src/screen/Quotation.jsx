@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+dayjs.extend(utc);
 import { useDataContext } from '../context/DataContext';
 import { API_BASE } from '../config/data';
 const { Title } = Typography;
@@ -23,6 +25,51 @@ const Quotation = ({ isDark }) => {
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(false);
   const { hotels } = useDataContext()
+  const [formHotels, setFormHotels] = useState([]);
+
+  const addHotel = () => {
+    const newHotel = {
+      id: Date.now(),
+      hotel_id: null,
+      room_type: null,
+      meal_plan: null,
+      check_in: null,
+      check_out: null,
+      nights: 0
+    };
+    setFormHotels([...formHotels, newHotel]);
+  };
+
+  const removeHotel = (id) => {
+    setFormHotels(formHotels.filter(h => h.id !== id));
+  };
+
+  // const updateHotel = (id, field, value) => {
+  //   setFormHotels(formHotels.map(h => h.id === id ? { ...h, [field]: value } : h));
+  // };
+  const updateHotel = (id, field, value) => {
+    setFormHotels(formHotels.map(h => {
+      if (h.id === id) {
+        const updatedHotel = { ...h, [field]: value };
+
+        // Auto-calculate nights if both dates exist
+        if (updatedHotel.check_in && updatedHotel.check_out) {
+          const start = dayjs(updatedHotel.check_in);
+          const end = dayjs(updatedHotel.check_out);
+
+          // Calculate difference in days
+          const diff = end.diff(start, 'day');
+
+          // Ensure we don't have negative nights
+          updatedHotel.nights = diff > 0 ? diff : 0;
+        }
+
+        return updatedHotel;
+      }
+      return h;
+    }));
+  };
+
   const passengerOptions = Array.from({ length: 30 }, (_, i) => ({
     label: i.toString(),
     value: i,
@@ -97,9 +144,10 @@ const Quotation = ({ isDark }) => {
             id: Date.now() + index,
             from: flight.origin?.city || flight.origin?.iata || '',
             to: flight.destination?.city || flight.destination?.iata || '',
-            date: flight.departureISO ? dayjs(flight.departureISO) : null,
-            departureDateTime: flight.departureISO ? dayjs(flight.departureISO) : null,
-            arrivalDateTime: flight.arrivalISO ? dayjs(flight.arrivalISO) : null,
+            // Use .utc(true) to parse the string and keep the time exactly as is
+            date: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
+            departureDateTime: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
+            arrivalDateTime: flight.arrivalISO ? dayjs.utc(flight.arrivalISO) : null,
             airline: flight.airline?.name || flight.airline?.iata || ''
           }));
           setFlights(parsedFlights);
@@ -401,63 +449,114 @@ const Quotation = ({ isDark }) => {
 
         {/* Hotel Details */}
         <Card style={cardStyle} title="Hotel Details" size="small">
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item
-                label="Hotel"
-                name="hotel_id"
-              >
-                <Select
-                  placeholder="-- Select Hotel --"
-                  options={hotelOptions}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item
-                label="Room Type"
-                name="room_type"
-              >
-                <Input placeholder="Enter room type" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item
-                label="Meal Plan"
-                name="meal_plan"
-              >
-                <Input placeholder="Enter meal plan" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item
-                label="Check-in"
-                name="check_in"
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item
-                label="Check-out"
-                name="check_out"
-              >
-                <DatePicker style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item
-                label="Nights"
-                name="nights"
-              >
-                <InputNumber min={0} style={{ width: '100%' }} placeholder="Number of nights" />
-              </Form.Item>
-            </Col>
-          </Row>
+          <div style={{ marginBottom: 16 }}>
+            {/* ✅ Changed condition to check formHotels */}
+            {formHotels.length === 0 ? (
+              <p style={{ color: '#999' }}>No hotels added yet</p>
+            ) : (
+              /* ✅ Changed map to loop over formHotels instead of hotels */
+              formHotels.map((hotel) => (
+                <Card
+                  key={hotel.id}
+                  style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
+                  extra={
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => removeHotel(hotel.id)}
+                    />
+                  }
+                >
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Item label="Hotel" style={{ marginBottom: 0 }}>
+                        <Select
+                          placeholder="-- Select Hotel --"
+                          options={hotelOptions}
+                          value={hotel.hotel_id}
+                          onChange={(val) => updateHotel(hotel.id, 'hotel_id', val)}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Item label="Room Type" style={{ marginBottom: 0 }}>
+                        <Select
+                          placeholder="Select Room type"
+                          value={hotel.room_type}
+                          onChange={(val) => updateHotel(hotel.id, 'room_type', val)}
+                          options={[
+                            { label: "Single", value: "Single" },
+                            { label: "Double", value: "Double" },
+                            { label: "Triple", value: "Triple" },
+                            { label: "Quad", value: "Quad" },
+                            { label: "Suites", value: "Suites" },
+                            { label: "Family Room", value: "Family Room" }
+                          ]}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Item label="Meal Plan" style={{ marginBottom: 0 }}>
+                        <Select
+                          placeholder="Select meal plan"
+                          value={hotel.meal_plan}
+                          onChange={(val) => updateHotel(hotel.id, 'meal_plan', val)}
+                          options={[
+                            { label: "Room Only", value: "Room Only" },
+                            { label: "Breakfast", value: "Breakfast" },
+                            { label: "Half Board", value: "Half Board" },
+                            { label: "Full Board", value: "Full Board" }
+                          ]}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Item label="Check-in" style={{ marginBottom: 0 }}>
+                        <DatePicker
+                          style={{ width: '100%' }}
+                          value={hotel.check_in}
+                          onChange={(date) => updateHotel(hotel.id, 'check_in', date)}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Item label="Check-out" style={{ marginBottom: 0 }}>
+                        <DatePicker
+                          style={{ width: '100%' }}
+                          value={hotel.check_out}
+                          onChange={(date) => updateHotel(hotel.id, 'check_out', date)}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Item label="Nights" style={{ marginBottom: 0 }}>
+                        <InputNumber
+                          min={0}
+                          style={{ width: '100%' }}
+                          placeholder="Number of nights"
+                          value={hotel.nights}
+                          onChange={(val) => updateHotel(hotel.id, 'nights', val)}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Card>
+              ))
+            )}
+          </div>
+          <Button
+            type="dashed"
+            icon={<PlusOutlined />}
+            onClick={addHotel}
+            block
+          >
+            Add Hotel Room
+          </Button>
         </Card>
 
         {/* Pricing */}
-        <Card title="Pricing" size="small" style={{marginBottom: 24}}>
+        <Card title="Pricing" size="small" style={{ marginBottom: 24 }}>
           <Row gutter={[16, 16]}>
             {/* Adult Price */}
             <Col xs={24} sm={8}>
@@ -553,9 +652,9 @@ const Quotation = ({ isDark }) => {
 • All non-refundable and non-changeable bookings are final. Once confirmed, these bookings cannot be cancelled, amended, or refunded under any circumstances, including but not limited to no-shows, early departures, or changes in travel plans.Some hotels may allow cancellations provided they are made at least 7 days prior to the check-in date. If a cancellation is permitted, cancellation charges may apply as per the hotel’s policy.Any cancellation made within 7 days of check-in may result in full or partial charges, In all cases where cancellation or amendment is allowed, an administration fee of £75 per booking will be charged. No refunds or amendments will be provided for cancellations due to circumstances beyond your control, including flight cancellations, visa issues, illness, or personal emergencies, unless otherwise stated by the hotel. we always recommend you take travel insurance. By confirming a booking, you acknowledge that you have read, understood, and agreed to these Terms & Conditions.
 
 • ravel Document- this is customer responsibility to check their visa status, passport validity or requirement visa / including transit visa for their travel destination before booking the flights. contact the relevant embassy or visa consulate .
-                  `} 
+                  `}
               >
-                <Input.TextArea 
+                <Input.TextArea
                   rows={3} placeholder="Enter cancellation policy" />
               </Form.Item>
             </Col>

@@ -30,6 +30,7 @@ const isFlight = (line) => {
 };
 
 // Helper to convert GDS date/time to ISO
+// Helper to convert GDS date/time to a "Clean" ISO (No Timezone Offset)
 function formatToISO(gdsDate, gdsTime) {
     const months = {
         JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
@@ -43,7 +44,6 @@ function formatToISO(gdsDate, gdsTime) {
     const now = new Date();
     let year = now.getFullYear();
 
-    // If flight month is earlier than current month, assume next year
     if (month < now.getMonth()) {
         year++;
     }
@@ -51,9 +51,13 @@ function formatToISO(gdsDate, gdsTime) {
     const hours = gdsTime.substring(0, 2);
     const minutes = gdsTime.substring(2, 4);
 
-    // Creates date in local time - change to Date.UTC if needed for your DB
-    const dateObj = new Date(year, month, day, hours, minutes);
-    return dateObj.toISOString();
+    // FIX 1: Create the date components manually into a string 
+    // This avoids 'new Date()' applying the server's local timezone.
+    // Format: YYYY-MM-DDTHH:mm:ss (No 'Z' at the end!)
+    const monthFixed = (month + 1).toString().padStart(2, '0');
+    const dayFixed = day.toString().padStart(2, '0');
+    
+    return `${year}-${monthFixed}-${dayFixed}T${hours}:${minutes}:00`;
 }
 
 function parsePassengerLine(line) {

@@ -76,14 +76,14 @@ const LogIn = ({ isDark }) => {
               Log In
             </Button>
           </Form.Item>
-          <Divider plain>Don't have an account?</Divider>
+          {/*<Divider plain>Don't have an account?</Divider>
           <Form.Item>
             <Link to="/register" style={{ textDecoration: 'none' }}>
               <Button type="default" block>
                 Create Account
               </Button>
             </Link>
-          </Form.Item>
+          </Form.Item> */}
         </Form>
       </Card>
     </div>

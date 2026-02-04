@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Flex, Form, Input, Modal, Popconfirm, Select, Space, Table, message } from 'antd';
 import { FiEdit2, FiTrash } from 'react-icons/fi';
 import { useDataContext } from '../context/DataContext';
+import { MdOutlineStarPurple500 } from "react-icons/md";
 
 const Hotels = () => {
     const { hotels, hotelsLoading, saveHotel, deleteHotel } = useDataContext();
@@ -71,9 +72,21 @@ const Hotels = () => {
             title: 'Hotel Type',
             dataIndex: 'hotelType',
             key: 'hotelType',
-            render: (hotelType) => (
-                <span style={{whiteSpace: 'nowrap'}}>{hotelType ? `${hotelType} Stars` : 'N/A'}</span>
-            )
+            render: (hotelType) => {
+                // 1. Convert to number and check if it's valid
+                const stars = parseInt(hotelType);
+
+                // 2. Return N/A if no valid stars are provided
+                if (!stars || isNaN(stars)) return <span style={{ color: '#ccc' }}>N/A</span>;
+
+                return (
+                    <div style={{ display: 'flex', color: '#daa520', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                        {Array.from({ length: stars }).map((_, index) => (
+                            <MdOutlineStarPurple500 key={index} />
+                        ))}
+                    </div>
+                );
+            }
         },
         {
             title: 'City',
