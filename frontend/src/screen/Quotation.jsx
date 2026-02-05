@@ -212,7 +212,16 @@ const Quotation = ({ isDark }) => {
     } finally {
       setLoading(false);
     }
+  };// Add these helper functions at the top of your component
+  const disabledCheckIn = (current) => {
+    // Can't select days before today
+    return current && current < dayjs().startOf('day');
   };
+
+const disabledCheckOut = (checkInDate) => (current) => {
+  // Allow the same day by only disabling dates strictly BEFORE the check-in date
+  return current && current < dayjs(checkInDate).startOf('day');
+};
 
   const cardStyle = {
     backgroundColor: isDark ? '#1f1f1f' : '#ffffff',
@@ -515,6 +524,7 @@ const Quotation = ({ isDark }) => {
                       <Form.Item label="Check-in" style={{ marginBottom: 0 }}>
                         <DatePicker
                           style={{ width: '100%' }}
+                          disabledDate={disabledCheckIn}
                           value={hotel.check_in}
                           onChange={(date) => updateHotel(hotel.id, 'check_in', date)}
                         />
@@ -525,6 +535,8 @@ const Quotation = ({ isDark }) => {
                         <DatePicker
                           style={{ width: '100%' }}
                           value={hotel.check_out}
+                          disabled={!hotel.check_in} // Disable check-out until check-in is selected
+                          disabledDate={disabledCheckOut(hotel.check_in)}
                           onChange={(date) => updateHotel(hotel.id, 'check_out', date)}
                         />
                       </Form.Item>

@@ -1,15 +1,5 @@
 const airportsData = require("aircodes");
 
-// const passengerFormat = {
-//     MR: "Adult Male",
-//     MRS: "Married Female",
-//     MS: "Adult Female",
-//     MISS: "Female (usually under 18)",
-//     CHD: "Child",
-//     INF: "Infant",
-//     MSTR: "Male Child"
-// };
-
 const passengerFormat = {
     MR: { label: "Adult Male", category: "adult" },
     MRS: { label: "Married Female", category: "adult" },
@@ -17,20 +7,19 @@ const passengerFormat = {
     MISS: { label: "Female (usually under 18)", category: "children" },
     MSTR: { label: "Male Child", category: "children" },
     CHD: { label: "Child", category: "children" },
-    INF: { label: "Infant", category: "infant" }
+    INF: { label: "Infant", category: "infant" },
 };
 
 const passengerCodes = Object.keys(passengerFormat);
 
 const isPassenger = (line) => passengerCodes.some((item) => line.includes(item));
-// const isFlight = (line) => /^\s*\d+[\.\s]+[A-Z0-9]{2}\s+\d{1,4}/i.test(line);
+
 const isFlight = (line) => {
-    const flightPattern = /^\s*\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
+    // Allows for optional leading characters like _ before the digit
+    const flightPattern = /^\s*[^A-Z0-9]?\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
     return flightPattern.test(line);
 };
 
-// Helper to convert GDS date/time to ISO
-// Helper to convert GDS date/time to a "Clean" ISO (No Timezone Offset)
 function formatToISO(gdsDate, gdsTime) {
     const months = {
         JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
@@ -51,72 +40,72 @@ function formatToISO(gdsDate, gdsTime) {
     const hours = gdsTime.substring(0, 2);
     const minutes = gdsTime.substring(2, 4);
 
-    // FIX 1: Create the date components manually into a string 
-    // This avoids 'new Date()' applying the server's local timezone.
-    // Format: YYYY-MM-DDTHH:mm:ss (No 'Z' at the end!)
     const monthFixed = (month + 1).toString().padStart(2, '0');
     const dayFixed = day.toString().padStart(2, '0');
-    
+
     return `${year}-${monthFixed}-${dayFixed}T${hours}:${minutes}:00`;
 }
 
+// FIXED: Now returns an ARRAY of passengers (Adult + Infant)
 function parsePassengerLine(line) {
+    const passengers = [];
     const indexMatch = line.match(/^(\d+)[\.\s]?/);
     const passengerNumber = indexMatch ? Number(indexMatch[1]) : null;
-    const titleMatch = line.match(new RegExp(`\\b(${passengerCodes.join('|')})\\b`));
 
-    if (!titleMatch) return null;
+    // 1. Handle Infant Block - FORCE category to 'infant'
+    const infantMatch = line.match(/\(INF([^/]+)\/([^)]+)\)/);
+    if (infantMatch) {
+        const infLastName = infantMatch[1];
+        const infFirstPart = infantMatch[2];
+        
+        const infTitleMatch = passengerCodes.find(code => infFirstPart.endsWith(code));
+        const infFirstName = infTitleMatch ? infFirstPart.slice(0, -infTitleMatch.length) : infFirstPart;
+        const infTitle = infTitleMatch || "INF";
 
-    const title = titleMatch[1];
-    const cleaned = line.replace(/^(\d+)[\.\s]?/, '').replace(new RegExp(`\\s+${title}$`), '');
-    const [lastName, firstPart] = cleaned.split('/');
-    if (!lastName || !firstPart) return null;
+        passengers.push({
+            passengerNumber,
+            lastName: infLastName,
+            firstName: infFirstName || null,
+            middleName: null,
+            title: infTitle,
+            // FIX: Overriding the lookup to ensure they are categorized as infant
+            type: {
+                label: "Infant",
+                category: "infant"
+            }
+        });
+    }
 
-    const nameParts = firstPart.trim().split(/\s+/);
-    return {
-        passengerNumber,
-        lastName,
-        firstName: nameParts[0],
-        middleName: nameParts.slice(1).join(' ') || null,
-        title,
-        type: passengerFormat[title]
-    };
+    // 2. Parse Adult
+    let adultSection = line.replace(/^(\d+)[\.\s]?/, '');
+    if (infantMatch) adultSection = adultSection.replace(infantMatch[0], '');
+
+    const titleMatch = adultSection.match(new RegExp(`\\b(${passengerCodes.join('|')})\\b`));
+    if (titleMatch) {
+        const title = titleMatch[1];
+        const nameSection = adultSection.replace(new RegExp(`\\s+${title}$`), '').trim();
+        const [lastName, firstPart] = nameSection.split('/');
+
+        if (lastName && firstPart) {
+            const nameParts = firstPart.trim().split(/\s+/);
+            passengers.unshift({
+                passengerNumber,
+                lastName,
+                firstName: nameParts[0],
+                middleName: nameParts.slice(1).join(' ') || null,
+                title,
+                type: passengerFormat[title]
+            });
+        }
+    }
+
+    return passengers.length > 0 ? passengers : null;
 }
 
-// function parseFlightLine(line) {
-//     const flightRegex = /^(\d+)[\.\s]+([A-Z0-9]{2})\s+(\d+)\s+([A-Z])\s+(\d{2}[A-Z]{3})\s+(\d)\s+([A-Z]{6})\s+([A-Z]{2}\d)\s+(\d{4})\s+(\d{4})/i;
-//     const match = line.match(flightRegex);
-
-//     if (!match) return null;
-
-//     const [_, index, iata, flightNumber, bookingClass, date, , route, status, depTime, arrTime] = match;
-
-//     return {
-//         segmentNumber: Number(index),
-//         flightNumber,
-//         airline: airportsData.getAirlineByIata(iata.toUpperCase()),
-//         class: bookingClass,
-//         date,
-//         origin: airportsData.getAirportByIata(route.substring(0, 3)),
-//         destination: airportsData.getAirportByIata(route.substring(3, 6)),
-//         status,
-//         departureISO: formatToISO(date, depTime),
-//         arrivalISO: formatToISO(date, arrTime) // Note: This assumes same-day arrival. 
-//     };
-// }
 function parseFlightLine(line) {
-    // 1. Updated Regex:
-    // (\d+)                -> Segment Number
-    // ([A-Z0-9]{2})        -> Airline Code
-    // \s* -> Optional space (handles SV 120 and SV120)
-    // (\d{1,4})            -> Flight Number
-    // \s*([A-Z])?          -> OPTIONAL Booking Class (The fix!)
-    // \s+(\d{2}[A-Z]{3})   -> Date (28JUL)
-    // \s+(\d)              -> Day of week
-    // \s+([A-Z]{6})        -> Route (LHRJED)
-    // \s+([A-Z]{2}\d)      -> Status (HK4)
-    // \s+(\d{4})\s+(\d{4}) -> Times
-    const flightRegex = /^\s*(\d+)[\.\s]+([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3})\s+(\d)\s+([A-Z]{6})\s+([A-Z]{2}\d)\s+(\d{4})\s+(\d{4})/i;
+    // UPDATED REGEX:
+    // Added [^A-Z0-9]? after the (\d) to ignore underscores or other stray symbols.
+    const flightRegex = /^\s*(\d+)[\.\s]+([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3})\s+(\d)[^A-Z0-9]?\s*([A-Z]{6})\s+([A-Z]{2}\d)\s+(\d{4})\s+(\d{4})/i;
 
     const match = line.match(flightRegex);
     if (!match) return null;
@@ -131,7 +120,6 @@ function parseFlightLine(line) {
         segmentNumber: Number(index),
         flightNumber: flightNum,
         airline: airportsData.getAirlineByIata(iata.toUpperCase()),
-        // If booking class is missing, we return null or a default
         class: bookingClass || null,
         date: date,
         origin: airportsData.getAirportByIata(originCode),
@@ -142,14 +130,16 @@ function parseFlightLine(line) {
     };
 }
 const convertFlightCodes = (rawData) => {
-    const segments = rawData.split(/\n|(?=\s\d+[\.\s]+[A-Z]+\/)/).map(l => l.trim()).filter(Boolean);
+    // FIX: Remove underscores that prevent matching
+    const sanitizedData = rawData.replace(/_/g, ' '); 
+    
+    const segments = sanitizedData.split(/\n/).map(l => l.trim()).filter(Boolean);
     const result = { passengers: [], flights: [] };
 
     segments.forEach((segment) => {
-        console.log(`${segment} ${isPassenger(segment) ? 'Passenger' : isFlight(segment) ? 'Flight' : 'Unspecified'}`)
         if (isPassenger(segment)) {
-            const p = parsePassengerLine(segment);
-            if (p) result.passengers.push(p);
+            const pList = parsePassengerLine(segment);
+            if (pList) result.passengers.push(...pList);
         } else if (isFlight(segment)) {
             const f = parseFlightLine(segment);
             if (f) result.flights.push(f);
