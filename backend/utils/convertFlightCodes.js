@@ -1,13 +1,68 @@
 const airportsData = require("aircodes");
 
+// const passengerFormat = {
+//     MR: { label: "Adult Male", category: "adult" },
+//     MRS: { label: "Married Female", category: "adult" },
+//     MS: { label: "Adult Female", category: "adult" },
+//     MISS: { label: "Female (usually under 18)", category: "children" },
+//     MSTR: { label: "Male Child", category: "children" },
+//     CHD: { label: "Child", category: "children" },
+//     INF: { label: "Infant", category: "infant" },
+// };
 const passengerFormat = {
+    // Standard Adults
     MR: { label: "Adult Male", category: "adult" },
     MRS: { label: "Married Female", category: "adult" },
     MS: { label: "Adult Female", category: "adult" },
-    MISS: { label: "Female (usually under 18)", category: "children" },
+
+    // Seniors (Discounted)
+    SRC: { label: "Senior Adult", category: "senior" }, //
+    SNN: { label: "Senior Citizen", category: "senior" },
+
+    // Youth (Ages 12-15) - Often £50 cheaper than Adult
+    C12: { label: "Youth (12 years)", category: "youth" }, //
+    C13: { label: "Youth (13 years)", category: "youth" }, //
+    C14: { label: "Youth (14 years)", category: "youth" }, //
+    C15: { label: "Youth (15 years)", category: "youth" }, //
+    YTH: { label: "Youth", category: "youth" },
+
+    // Children (Ages 2-11)
+    CHD: { label: "Child", category: "children" }, //
+    C03: { label: "Child (3 years)", category: "children" }, //
+    C04: { label: "Child (4 years)", category: "children" }, //
+    C05: { label: "Child (5 years)", category: "children" }, //
+    C06: { label: "Child (6 years)", category: "children" },
+    C07: { label: "Child (7 years)", category: "children" },
+    C08: { label: "Child (8 years)", category: "children" },
+    C09: { label: "Child (9 years)", category: "children" },
+    C10: { label: "Child (10 years)", category: "children" },
+    C11: { label: "Child (11 years)", category: "children" },
     MSTR: { label: "Male Child", category: "children" },
-    CHD: { label: "Child", category: "children" },
+    MISS: { label: "Female Child", category: "children" },
+
+    // Infants (Under 2 years)
     INF: { label: "Infant", category: "infant" },
+    IN: { label: "Infant without Seat", category: "infant" },
+    INS: { label: "Infant with Seat", category: "infant" },
+
+    // Professional & Official Status
+    MIL: { label: "Military Personnel", category: "military" }, //
+    STU: { label: "Student", category: "student" }, //
+    SEA: { label: "Seaman/Crew", category: "crew" }, //
+    GOV: { label: "Government Official", category: "official" }, //
+    LBR: { label: "Laborer/Worker", category: "worker" }, //
+    CLG: { label: "Clergy", category: "official" }, //
+
+    // Special Assistance
+    BLD: { label: "Blind", category: "assistance" }, //
+    DEAF: { label: "Deaf", category: "assistance" }, //
+    MED: { label: "Medical Case", category: "assistance" }, //
+    DPNA: { label: "Developmental Disability", category: "assistance" }, //
+    
+    // Miscellaneous
+    EXST: { label: "Extra Seat", category: "special" }, //
+    BAG: { label: "Cabin Baggage", category: "special" }, //
+    BRV: { label: "Bereavement", category: "special" } //
 };
 
 const passengerCodes = Object.keys(passengerFormat);
