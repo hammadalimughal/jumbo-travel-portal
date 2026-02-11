@@ -1,7 +1,7 @@
 import { theme } from "antd";
 
 // Slightly darker primary to improve contrast on light theme (shared across both modes).
-const primaryColor = '#0f8a59';
+const primaryColor = '#065c91';
 
 export const lightTheme = {
     algorithm: theme.defaultAlgorithm,
@@ -22,5 +22,6 @@ export const lightTheme = {
       colorBgContainer: '#141414',
       colorBgLayout: '#000000',
       colorText: '#ffffff',
+      
     },
   };

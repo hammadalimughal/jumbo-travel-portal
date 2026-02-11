@@ -218,10 +218,10 @@ const Quotation = ({ isDark }) => {
     return current && current < dayjs().startOf('day');
   };
 
-const disabledCheckOut = (checkInDate) => (current) => {
-  // Allow the same day by only disabling dates strictly BEFORE the check-in date
-  return current && current < dayjs(checkInDate).startOf('day');
-};
+  const disabledCheckOut = (checkInDate) => (current) => {
+    // Allow the same day by only disabling dates strictly BEFORE the check-in date
+    return current && current < dayjs(checkInDate).startOf('day');
+  };
 
   const cardStyle = {
     backgroundColor: isDark ? '#1f1f1f' : '#ffffff',
@@ -311,7 +311,8 @@ const disabledCheckOut = (checkInDate) => (current) => {
                 name="travel_date"
                 rules={[{ required: true, message: 'Please select travel date' }]}
               >
-                <DatePicker style={{ width: '100%' }} />
+                <DatePicker
+                  format="DD-MM-YYYY HH:mm:ss" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -391,6 +392,7 @@ const disabledCheckOut = (checkInDate) => (current) => {
                     <Col xs={24} sm={12} md={5}>
                       <Form.Item label="Date" style={{ marginBottom: 0 }}>
                         <DatePicker
+                          format="DD-MM-YYYY HH:mm:ss"
                           style={{ width: '100%' }}
                           value={flight.date}
                           onChange={(date) => updateFlight(flight.id, 'date', date)}
@@ -422,6 +424,7 @@ const disabledCheckOut = (checkInDate) => (current) => {
                     <Col xs={24} sm={12} md={12}>
                       <Form.Item label="Departure Date & Time" style={{ marginBottom: 0 }}>
                         <DatePicker
+                          format="DD-MM-YYYY HH:mm:ss"
                           showTime
                           style={{ width: '100%' }}
                           value={flight.departureDateTime}
@@ -433,6 +436,7 @@ const disabledCheckOut = (checkInDate) => (current) => {
                     <Col xs={24} sm={12} md={12}>
                       <Form.Item label="Arrival Date & Time" style={{ marginBottom: 0 }}>
                         <DatePicker
+                          format="DD-MM-YYYY HH:mm:ss"
                           showTime
                           style={{ width: '100%' }}
                           value={flight.arrivalDateTime}
@@ -523,6 +527,7 @@ const disabledCheckOut = (checkInDate) => (current) => {
                     <Col xs={24} sm={12} md={8}>
                       <Form.Item label="Check-in" style={{ marginBottom: 0 }}>
                         <DatePicker
+                          format="DD-MM-YYYY"
                           style={{ width: '100%' }}
                           disabledDate={disabledCheckIn}
                           value={hotel.check_in}
@@ -533,6 +538,7 @@ const disabledCheckOut = (checkInDate) => (current) => {
                     <Col xs={24} sm={12} md={8}>
                       <Form.Item label="Check-out" style={{ marginBottom: 0 }}>
                         <DatePicker
+                          format="DD-MM-YYYY"
                           style={{ width: '100%' }}
                           value={hotel.check_out}
                           disabled={!hotel.check_in} // Disable check-out until check-in is selected

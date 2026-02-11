@@ -58,7 +58,7 @@ const passengerFormat = {
     DEAF: { label: "Deaf", category: "assistance" }, //
     MED: { label: "Medical Case", category: "assistance" }, //
     DPNA: { label: "Developmental Disability", category: "assistance" }, //
-    
+
     // Miscellaneous
     EXST: { label: "Extra Seat", category: "special" }, //
     BAG: { label: "Cabin Baggage", category: "special" }, //
@@ -69,13 +69,47 @@ const passengerCodes = Object.keys(passengerFormat);
 
 const isPassenger = (line) => passengerCodes.some((item) => line.includes(item));
 
+// const isFlight = (line) => {
+//     // Allows for optional leading characters like _ before the digit
+//     const flightPattern = /^\s*[^A-Z0-9]?\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
+//     return flightPattern.test(line);
+// };
+
 const isFlight = (line) => {
-    // Allows for optional leading characters like _ before the digit
-    const flightPattern = /^\s*[^A-Z0-9]?\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
-    return flightPattern.test(line);
+    // Allows for optional symbols like * or _ anywhere before the main flight data
+    const flightPattern = /^\s*\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
+    // We strip common symbols for the validation check
+    const sanitizedLine = line.replace(/[*_]/g, ' ');
+    return flightPattern.test(sanitizedLine);
 };
 
-function formatToISO(gdsDate, gdsTime) {
+// function formatToISO(gdsDate, gdsTime) {
+//     const months = {
+//         JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+//         JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
+//     };
+
+//     const day = parseInt(gdsDate.substring(0, 2));
+//     const monthStr = gdsDate.substring(2).toUpperCase();
+//     const month = months[monthStr];
+
+//     const now = new Date();
+//     let year = now.getFullYear();
+
+//     if (month < now.getMonth()) {
+//         year++;
+//     }
+
+//     const hours = gdsTime.substring(0, 2);
+//     const minutes = gdsTime.substring(2, 4);
+
+//     const monthFixed = (month + 1).toString().padStart(2, '0');
+//     const dayFixed = day.toString().padStart(2, '0');
+
+//     return `${year}-${monthFixed}-${dayFixed}T${hours}:${minutes}:00`;
+// }
+
+function formatToISO(gdsDate, gdsTime, referenceDepartureTime = null) {
     const months = {
         JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
         JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
@@ -88,19 +122,27 @@ function formatToISO(gdsDate, gdsTime) {
     const now = new Date();
     let year = now.getFullYear();
 
+    // Year rollover logic for flights booked in Dec for Jan
     if (month < now.getMonth()) {
         year++;
     }
 
+    let dateObj = new Date(year, month, day);
+
+    // Overnight Logic: If arrival time is earlier than departure time, it's the next day
+    if (referenceDepartureTime && parseInt(gdsTime) < parseInt(referenceDepartureTime)) {
+        dateObj.setDate(dateObj.getDate() + 1);
+    }
+
+    const finalYear = dateObj.getFullYear();
+    const finalMonth = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+    const finalDay = dateObj.getDate().toString().padStart(2, '0');
+
     const hours = gdsTime.substring(0, 2);
     const minutes = gdsTime.substring(2, 4);
 
-    const monthFixed = (month + 1).toString().padStart(2, '0');
-    const dayFixed = day.toString().padStart(2, '0');
-
-    return `${year}-${monthFixed}-${dayFixed}T${hours}:${minutes}:00`;
+    return `${finalYear}-${finalMonth}-${finalDay}T${hours}:${minutes}:00`;
 }
-
 // FIXED: Now returns an ARRAY of passengers (Adult + Infant)
 function parsePassengerLine(line) {
     const passengers = [];
@@ -112,7 +154,7 @@ function parsePassengerLine(line) {
     if (infantMatch) {
         const infLastName = infantMatch[1];
         const infFirstPart = infantMatch[2];
-        
+
         const infTitleMatch = passengerCodes.find(code => infFirstPart.endsWith(code));
         const infFirstName = infTitleMatch ? infFirstPart.slice(0, -infTitleMatch.length) : infFirstPart;
         const infTitle = infTitleMatch || "INF";
@@ -170,7 +212,8 @@ function parseFlightLine(line) {
 
     const originCode = route.substring(0, 3);
     const destinationCode = route.substring(3, 6);
-
+    const departureISO = formatToISO(date, dep);
+    const arrivalISO = formatToISO(date, arr, departureISO);
     return {
         segmentNumber: Number(index),
         flightNumber: flightNum,
@@ -180,24 +223,26 @@ function parseFlightLine(line) {
         origin: airportsData.getAirportByIata(originCode),
         destination: airportsData.getAirportByIata(destinationCode),
         status: status,
-        departureISO: formatToISO(date, dep),
-        arrivalISO: formatToISO(date, arr)
+        departureISO,
+        arrivalISO
     };
 }
 const convertFlightCodes = (rawData) => {
     // FIX: Remove underscores that prevent matching
-    const sanitizedData = rawData.replace(/_/g, ' '); 
-    
+    const sanitizedData = rawData.replace(/_/g, ' ');
+
     const segments = sanitizedData.split(/\n/).map(l => l.trim()).filter(Boolean);
     const result = { passengers: [], flights: [] };
 
     segments.forEach((segment) => {
-        if (isPassenger(segment)) {
+        console.log(`${segment} => ${isFlight(segment) ? 'Flight' : isPassenger(segment) ? 'Passenger' : 'Unrecognized'}`)
+        if (isFlight(segment)) {
+            const f = parseFlightLine(segment);
+            console.log('f', f)
+            if (f) result.flights.push(f);
+        } else if (isPassenger(segment)) {
             const pList = parsePassengerLine(segment);
             if (pList) result.passengers.push(...pList);
-        } else if (isFlight(segment)) {
-            const f = parseFlightLine(segment);
-            if (f) result.flights.push(f);
         }
     });
 

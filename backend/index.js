@@ -23,9 +23,9 @@ app.use(cookieParser());
 
 // Debug middleware
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
+  // console.log(`${req.method} ${req.path}`);
   // If this still shows undefined, check the "Important Checklist" below
-  console.log('Body:', req.body); 
+  // console.log('Body:', req.body); 
   next();
 });
 

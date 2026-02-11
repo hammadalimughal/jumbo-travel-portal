@@ -20,7 +20,7 @@ import {
 import { lightTheme, darkTheme } from './config/theme';
 import { Layout, Menu, theme, Button, ConfigProvider, Switch, Result } from 'antd';
 const { Header, Content, Footer, Sider } = Layout;
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import Register from './screen/Register'
 import ForgotPassword from './screen/ForgotPassword'
@@ -31,15 +31,7 @@ import LogIn from './screen/Login';
 import Dashboard from './screen/Dashboard';
 import Quotation from './screen/Quotation';
 import Hotels from './screen/Hotels';
-const siderStyle = {
-  overflow: 'auto',
-  height: '100vh',
-  position: 'sticky',
-  insetInlineStart: 0,
-  top: 0,
-  scrollbarWidth: 'thin',
-  scrollbarGutter: 'stable',
-};
+
 
 const items = [
   {
@@ -110,6 +102,17 @@ const App = () => {
       return false;
     }
   });
+  const siderStyle = {
+    overflow: 'auto',
+    height: '100vh',
+    position: 'sticky',
+    insetInlineStart: 0,
+    top: 0,
+    scrollbarWidth: 'thin',
+    scrollbarGutter: 'stable',
+    // backgroundColor: isDark ? '#141414' : '#fff'
+    backgroundColor: '#141414'
+  };
   const { isAuthenticated, logout } = useAuthContext();
   const [selectedNav, setSelectedNav] = useState(items[0].key)
   const navigate = useNavigate()
@@ -144,9 +147,19 @@ const App = () => {
         <Layout hasSider>
           <Sider collapsed={collapsed} style={siderStyle}>
             <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', padding: collapsed ? '10px' : '30px 20px' }}>
-              <img style={{ width: '100px', maxWidth: '100%' }} src="/logo.png" alt="logo" />
+              <Link to="/">
+                <img style={{ maxWidth: '100%' }} src="/logo.png" alt="logo" />
+              </Link>
             </div>
-            <Menu onClick={handleMenuChange} theme="dark" mode="inline" selectedKeys={[selectedNav]} items={items} />
+            <Menu
+              onClick={handleMenuChange} style={{
+                backgroundColor: '#141414'
+              }}
+              theme="dark"
+              mode="inline"
+              selectedKeys={[selectedNav]}
+              items={items}
+            />
           </Sider>
           <Layout>
             <Header style={{ padding: 0, background: isDark ? '#141414' : '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 20 }}>
