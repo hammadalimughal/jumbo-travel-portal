@@ -29,8 +29,9 @@ import ResetPassword from './screen/ResetPassword'
 import { useAuthContext } from './context/AuthContext'
 import LogIn from './screen/Login';
 import Dashboard from './screen/Dashboard';
-import Quotation from './screen/Quotation';
+import Quotations from './screen/Quotations';
 import Hotels from './screen/Hotels';
+import NewQuotation from './screen/NewQuotation';
 
 
 const items = [
@@ -45,7 +46,7 @@ const items = [
     label: 'Hotels'
   },
   {
-    key: '/quotation',
+    key: '/quotations',
     icon: <ProjectOutlined />,
     label: 'Quotations'
   },
@@ -197,8 +198,12 @@ const App = () => {
                       <Hotels isDark={isDark} />
                     </ProtectedRoute>
                     } />
-                    <Route path='/quotation' element={<ProtectedRoute>
-                      <Quotation isDark={isDark} />
+                    <Route path='/quotations' element={<ProtectedRoute>
+                      <Quotations isDark={isDark} />
+                    </ProtectedRoute>
+                    } />
+                    <Route path='/new-quotation' element={<ProtectedRoute>
+                      <NewQuotation isDark={isDark} />
                     </ProtectedRoute>
                     } />
                     <Route path='*' element={<Result

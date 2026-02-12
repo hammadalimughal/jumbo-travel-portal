@@ -6,9 +6,11 @@ import utc from 'dayjs/plugin/utc';
 dayjs.extend(utc);
 import { useDataContext } from '../context/DataContext';
 import { API_BASE } from '../config/data';
+import { useNavigate } from 'react-router-dom'
 const { Title } = Typography;
 
-const Quotation = ({ isDark }) => {
+const NewQuotation = ({ isDark }) => {
+  const navigate = useNavigate();
   const [price, setPrice] = useState({
     adults: 0,
     infant: 0,
@@ -166,7 +168,8 @@ const Quotation = ({ isDark }) => {
   }
 
   const hotelOptions = hotels.map((item) => ({
-    value: 1,
+    // Use the actual database ID instead of a hardcoded 1
+    value: item._id,
     label: `${item.name} ${item.hotelType ? ` - ${item.hotelType} Stars` : ''}`,
     location: `${item.city}, ${item.country}`,
   }));
@@ -190,6 +193,14 @@ const Quotation = ({ isDark }) => {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
+      const isHotelsValid = formHotels.every(h =>
+        h.hotel_id && h.room_type && h.meal_plan && h.check_in && h.check_out && h.nights > 0
+      );
+
+      if (formHotels.length > 0 && !isHotelsValid) {
+        message.error("Please fill in all hotel details (Room, Dates, Nights).");
+        return;
+      }
       // Format dates
       const formData = {
         ...values,
@@ -202,11 +213,26 @@ const Quotation = ({ isDark }) => {
           departureDateTime: f.departureDateTime ? f.departureDateTime.format('YYYY-MM-DD HH:mm:ss') : null,
           arrivalDateTime: f.arrivalDateTime ? f.arrivalDateTime.format('YYYY-MM-DD HH:mm:ss') : null,
         })),
+        hotels: formHotels
       };
 
       // Here you would send formData to your backend
       console.log('Form Data:', formData);
-      message.success('Quotation saved successfully!');
+      const response = await fetch(`${API_BASE}/quotation/generate-invoice`, {
+        method: 'POST',
+        headers: {
+          "Content-Type": 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+      const result = await response.json();
+      console.log(result)
+      if (result.success) {
+        message.success('Quotation saved successfully!');
+        navigate('/quotations')
+        return
+      }
+      message.error(result.error);
     } catch (error) {
       message.error('Failed to save quotation');
     } finally {
@@ -463,11 +489,9 @@ const Quotation = ({ isDark }) => {
         {/* Hotel Details */}
         <Card style={cardStyle} title="Hotel Details" size="small">
           <div style={{ marginBottom: 16 }}>
-            {/* ✅ Changed condition to check formHotels */}
             {formHotels.length === 0 ? (
               <p style={{ color: '#999' }}>No hotels added yet</p>
             ) : (
-              /* ✅ Changed map to loop over formHotels instead of hotels */
               formHotels.map((hotel) => (
                 <Card
                   key={hotel.id}
@@ -482,18 +506,29 @@ const Quotation = ({ isDark }) => {
                   }
                 >
                   <Row gutter={[16, 16]}>
+                    {/* 1. Hotel Selection - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
-                      <Form.Item label="Hotel" style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        label="Hotel"
+                        style={{ marginBottom: 0 }}
+                        rules={[{ required: true, message: 'Please select a hotel' }]}
+                      >
                         <Select
                           placeholder="-- Select Hotel --"
                           options={hotelOptions}
-                          value={hotel.hotel_id}
+                          value={hotel._id}
                           onChange={(val) => updateHotel(hotel.id, 'hotel_id', val)}
                         />
                       </Form.Item>
                     </Col>
+
+                    {/* 2. Room Type - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
-                      <Form.Item label="Room Type" style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        label="Room Type"
+                        style={{ marginBottom: 0 }}
+                        rules={[{ required: true, message: 'Room type is required' }]}
+                      >
                         <Select
                           placeholder="Select Room type"
                           value={hotel.room_type}
@@ -509,8 +544,14 @@ const Quotation = ({ isDark }) => {
                         />
                       </Form.Item>
                     </Col>
+
+                    {/* 3. Meal Plan - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
-                      <Form.Item label="Meal Plan" style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        label="Meal Plan"
+                        style={{ marginBottom: 0 }}
+                        rules={[{ required: true, message: 'Meal plan is required' }]}
+                      >
                         <Select
                           placeholder="Select meal plan"
                           value={hotel.meal_plan}
@@ -524,8 +565,14 @@ const Quotation = ({ isDark }) => {
                         />
                       </Form.Item>
                     </Col>
+
+                    {/* 4. Check-in - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
-                      <Form.Item label="Check-in" style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        label="Check-in"
+                        style={{ marginBottom: 0 }}
+                        rules={[{ required: true, message: 'Check-in date is required' }]}
+                      >
                         <DatePicker
                           format="DD-MM-YYYY"
                           style={{ width: '100%' }}
@@ -535,22 +582,34 @@ const Quotation = ({ isDark }) => {
                         />
                       </Form.Item>
                     </Col>
+
+                    {/* 5. Check-out - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
-                      <Form.Item label="Check-out" style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        label="Check-out"
+                        style={{ marginBottom: 0 }}
+                        rules={[{ required: true, message: 'Check-out date is required' }]}
+                      >
                         <DatePicker
                           format="DD-MM-YYYY"
                           style={{ width: '100%' }}
                           value={hotel.check_out}
-                          disabled={!hotel.check_in} // Disable check-out until check-in is selected
+                          disabled={!hotel.check_in}
                           disabledDate={disabledCheckOut(hotel.check_in)}
                           onChange={(date) => updateHotel(hotel.id, 'check_out', date)}
                         />
                       </Form.Item>
                     </Col>
+
+                    {/* 6. Nights - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
-                      <Form.Item label="Nights" style={{ marginBottom: 0 }}>
+                      <Form.Item
+                        label="Nights"
+                        style={{ marginBottom: 0 }}
+                        rules={[{ required: true, message: 'Nights count is required' }]}
+                      >
                         <InputNumber
-                          min={0}
+                          min={1}
                           style={{ width: '100%' }}
                           placeholder="Number of nights"
                           value={hotel.nights}
@@ -682,11 +741,11 @@ const Quotation = ({ isDark }) => {
         {/* Submit Button */}
         <Form.Item>
           <Space>
-            <Button type="primary" htmlType="submit" size="large" loading={loading}>
+            <Button type="primary" htmlType="submit" size="medium" loading={loading}>
               Generate Quotation
             </Button>
-            <Button size="large">
-              Cancel
+            <Button size="medium">
+              Reset Form
             </Button>
           </Space>
         </Form.Item>
@@ -695,4 +754,4 @@ const Quotation = ({ isDark }) => {
   );
 };
 
-export default Quotation;
+export default NewQuotation;

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+
+        /* Base Styles - Using Work Sans to match your brand */
+        body { font-family: "Montserrat", sans-serif; margin: 0; padding: 0; color: #333; }
+        .container { width: 100%; }
+        p{
+            margin: 0;
+            padding: 0;
+        }
+        .flex { display: table; width: 100%; }
+        .col { display: table-cell; vertical-align: top; }
+        .text-right { text-align: right; }
+        
+        /* Zaarvel Specific Colors */
+        .brand-color { color: #E02D0D; }
+        .bg-gray { background-color: #f3f4f6; }
+        .header-section { background-color: #e5e7eb; padding: 8px; margin: 20px 0 10px 0; font-weight: bold; text-transform: uppercase; }
+        
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { background-color: #f9fafb; border: 1px solid #d1d5db; padding: 8px; font-size: 10px; text-align: left; text-transform: uppercase; }
+        td { border: 1px solid #d1d5db; padding: 8px; font-size: 11px; }
+        
+        /* Pricing Box */
+        .price-table { width: 50%; 
+            margin-left: auto;
+        }
+        .total-row { background-color: #f9fafb; font-weight: bold; }
+        .text-blue { color: #2563eb; }
+        .text-green { color: #16a34a; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="flex">
+            <div class="col">
+                <h1 class="brand-color" style="font-size: 32px; margin: 0;">ZAARVEL</h1>
+            </div>
+            <div class="col text-right" style="font-size: 12px; line-height: 1.4;">
+                <p><strong>Jumbo Travel</strong><br>United Kingdom, Leicester<br>77 Constance Rd, LE5 5DF UK</p>
+            </div>
+        </div>
+
+        <!-- <div class="header-section">Umrah Quotation</div> -->
+
+        <div class="flex" style="margin-bottom: 20px;">
+            <div class="col" style="font-size: 12px; line-height: 1.6;">
+                <p><strong>Client Name:</strong> Mr. Khan</p>
+                <p><strong>Mail:</strong> mrkhan@gmail.com</p>
+                <p><strong>Contact No:</strong> 0123456789</p>
+                <p>2 Adult(s), 0 Child(ren), 0 Infant(s)</p>
+            </div>
+            <div class="col text-right" style="font-size: 12px; line-height: 1.6;">
+                <p><strong>Quotation No:</strong> QA|10136</p>
+                <p><strong>Date:</strong> 12/02/2026</p>
+                <p style="margin-top: 10px;">Avg Price Per Person: <span class="text-green">£2127.50</span></p>
+                <p>Total Package Price: <span class="text-blue">£4255.00</span></p>
+            </div>
+        </div>
+
+        <div class="header-section">Flight Details</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Airline</th>
+                    <th>Departure</th>
+                    <th>Arrival</th>
+                    <th>Baggage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Saudi Arabian</strong><br>LHR -> JED</td>
+                    <td>22:15<br>Thu 10 April, 2025</td>
+                    <td>06:30<br>Fri 11 April, 2025</td>
+                    <td>upto 1 piece</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 30px;">
+            <table class="price-table">
+                <tr style="font-weight: bold; font-size: 10px;">
+                    <td>Passengers</td>
+                    <td>Price</td>
+                    <td>Sub-Total</td>
+                </tr>
+                <tr>
+                    <td>Adult</td>
+                    <td>2 x £1287.59</td>
+                    <td>£2575.18</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="2">Total Price:</td>
+                    <td>£2576.00</td>
+                </tr>
+            </table>
+        </div>
+        <div class="header-section" style="margin-top: 30px;">Hotel Details</div>
+        <table>
+            <!-- <thead>
+            </thead> -->
+            <tbody>
+                <tr>
+                    <th></th>
+                </tr>
+                <tr>
+                    <th>Room Type</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Meal Plan</th>
+                    <th>Total Nights</th>
+                    <th>Price</th>
+                </tr>
+                <tr>
+                    <td><strong>Saudi Arabian</strong><br>LHR -> JED</td>
+                    <td>22:15<br>Thu 10 April, 2025</td>
+                    <td>06:30<br>Fri 11 April, 2025</td>
+                    <td>upto 1 piece</td>
+                    <td>upto 1 piece</td>
+                    <td>upto 1 piece</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div style="margin-top: 30px;">
+            <table class="price-table">
+                <tr style="font-weight: bold; font-size: 10px;">
+                    <td>Passengers</td>
+                    <td>Price</td>
+                    <td>Sub-Total</td>
+                </tr>
+                <tr>
+                    <td>Adult</td>
+                    <td>2 x £1287.59</td>
+                    <td>£2575.18</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="2">Total Price:</td>
+                    <td>£2576.00</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

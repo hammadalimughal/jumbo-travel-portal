@@ -128,7 +128,8 @@ function formatToISO(gdsDate, gdsTime, referenceDepartureTime = null) {
     }
 
     let dateObj = new Date(year, month, day);
-
+    console.log(dateObj)
+    console.log(referenceDepartureTime)
     // Overnight Logic: If arrival time is earlier than departure time, it's the next day
     if (referenceDepartureTime && parseInt(gdsTime) < parseInt(referenceDepartureTime)) {
         dateObj.setDate(dateObj.getDate() + 1);
@@ -213,7 +214,7 @@ function parseFlightLine(line) {
     const originCode = route.substring(0, 3);
     const destinationCode = route.substring(3, 6);
     const departureISO = formatToISO(date, dep);
-    const arrivalISO = formatToISO(date, arr, departureISO);
+    const arrivalISO = formatToISO(date, arr, dep);
     return {
         segmentNumber: Number(index),
         flightNumber: flightNum,
