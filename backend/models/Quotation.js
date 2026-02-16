@@ -21,7 +21,8 @@ const HotelBookingSchema = new mongoose.Schema({
     },
     check_in: { type: Date },
     check_out: { type: Date },
-    nights: { type: Number, default: 0 }
+    nights: { type: Number, default: 0 },
+    noOfRooms: { type: Number, default: 1 }
 });
 
 const QuotationSchema = new mongoose.Schema({
@@ -62,14 +63,23 @@ const QuotationSchema = new mongoose.Schema({
         enum: ['Draft', 'Sent', 'Confirmed', 'Expired'],
         default: 'Draft'
     },
+    tracking: {
+        // is_confirmed: { type: Boolean, default: false },
+        hotel_booking_done: { type: Boolean, default: false },
+        responded_to_client: { type: Boolean, default: false },
+        // alert_sent: { type: Boolean, default: false } // To prevent duplicate alerts
+    },
     quotation_no: { type: String, unique: true }, // e.g., QA|10136
     invoice: { type: String }, // e.g., QA|10136
-    created_at: { type: Date, default: Date.now }
+    created_at: { type: Date, default: Date.now },
+    created_by: {
+        type: mongoose.Schema.Types.ObjectId, ref: 'User'
+    }
 }, { timestamps: true });
 
 const CounterSchema = new mongoose.Schema({
-  id: { type: String, required: true },
-  seq: { type: Number, default: 10000 } // Start from 10000
+    id: { type: String, required: true },
+    seq: { type: Number, default: 10000 } // Start from 10000
 });
 const Counter = mongoose.model('Counter', CounterSchema);
 

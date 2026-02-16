@@ -37,7 +37,8 @@ const NewQuotation = ({ isDark }) => {
       meal_plan: null,
       check_in: null,
       check_out: null,
-      nights: 0
+      nights: 0,
+      noOfRooms: 0,
     };
     setFormHotels([...formHotels, newHotel]);
   };
@@ -143,6 +144,7 @@ const NewQuotation = ({ isDark }) => {
         // Parse and set flights
         if (flights && flights.length > 0) {
           const parsedFlights = flights.map((flight, index) => ({
+            ...flight,
             id: Date.now() + index,
             from: flight.origin?.city || flight.origin?.iata || '',
             to: flight.destination?.city || flight.destination?.iata || '',
@@ -194,7 +196,7 @@ const NewQuotation = ({ isDark }) => {
     setLoading(true);
     try {
       const isHotelsValid = formHotels.every(h =>
-        h.hotel_id && h.room_type && h.meal_plan && h.check_in && h.check_out && h.nights > 0
+        h.hotel_id && h.room_type && h.meal_plan && h.check_in && h.check_out && h.nights >= 0 && h.noOfRooms > 0
       );
 
       if (formHotels.length > 0 && !isHotelsValid) {
@@ -211,7 +213,7 @@ const NewQuotation = ({ isDark }) => {
           ...f,
           date: f.date ? f.date.format('YYYY-MM-DD') : null,
           departureDateTime: f.departureDateTime ? f.departureDateTime.format('YYYY-MM-DD HH:mm:ss') : null,
-          arrivalDateTime: f.arrivalDateTime ? f.arrivalDateTime.format('YYYY-MM-DD HH:mm:ss') : null,
+          arrivalDateTime: f.arrivalDateTime ? f.arrivalDateTime.format('YYYY-MM-DD HH:mm:ss') : null
         })),
         hotels: formHotels
       };
@@ -338,7 +340,7 @@ const NewQuotation = ({ isDark }) => {
                 rules={[{ required: true, message: 'Please select travel date' }]}
               >
                 <DatePicker
-                  format="DD-MM-YYYY HH:mm:ss" style={{ width: '100%' }} />
+                  format="DD-MM-YYYY" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -544,6 +546,21 @@ const NewQuotation = ({ isDark }) => {
                         />
                       </Form.Item>
                     </Col>
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Item
+                        label="No. of Rooms"
+                        style={{ marginBottom: 0 }}
+                        rules={[{ required: true, message: 'No of rooms is required' }]}
+                      >
+                        <InputNumber
+                          min={1}
+                          style={{ width: '100%' }}
+                          placeholder="Number of rooms"
+                          value={hotel.noOfRooms}
+                          onChange={(val) => updateHotel(hotel.id, 'noOfRooms', val)}
+                        />
+                      </Form.Item>
+                    </Col>
 
                     {/* 3. Meal Plan - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
@@ -601,7 +618,7 @@ const NewQuotation = ({ isDark }) => {
                       </Form.Item>
                     </Col>
 
-                    {/* 6. Nights - REQUIRED */}
+                    {/* 6. Nights - REQUIRED */}                    
                     <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         label="Nights"
@@ -609,7 +626,7 @@ const NewQuotation = ({ isDark }) => {
                         rules={[{ required: true, message: 'Nights count is required' }]}
                       >
                         <InputNumber
-                          min={1}
+                          min={0}
                           style={{ width: '100%' }}
                           placeholder="Number of nights"
                           value={hotel.nights}

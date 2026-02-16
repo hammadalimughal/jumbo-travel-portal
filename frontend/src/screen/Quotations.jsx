@@ -85,14 +85,34 @@ const Quotations = () => {
             key: 'totalPrice',
             render: (price) => <span style={{ color: '#16a34a', fontWeight: 'bold' }}>£{price?.toFixed(2)}</span>,
         },
+        // {
+        //     title: 'Status',
+        //     dataIndex: 'status',
+        //     key: 'status',
+        //     render: (status) => {
+        //         let color = status === 'Paid' ? 'green' : status === 'Overdue' ? 'red' : 'blue';
+        //         return <Tag color={color}>{status?.toUpperCase() || 'DRAFT'}</Tag>;
+        //     }
+        // },
         {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            render: (status) => {
-                let color = status === 'Paid' ? 'green' : status === 'Overdue' ? 'red' : 'blue';
-                return <Tag color={color}>{status?.toUpperCase() || 'DRAFT'}</Tag>;
-            }
+            title: 'Milestones',
+            key: 'tracking',
+            width: 300,
+            render: (_, record) => (
+                <Space size="small" wrap>
+                    <Tag color={record.tracking?.hotel_booking_done ? 'blue' : 'red'} style={{ borderRadius: '12px' }}>
+                        {record.tracking?.hotel_booking_done ? '● Hotel Done' : '○ Hotel Pending'}
+                    </Tag>
+                    <Tag color={record.tracking?.responded_to_client ? 'purple' : 'red'} style={{ borderRadius: '12px' }}>
+                        {record.tracking?.responded_to_client ? '● Responded' : '○ No Response'}
+                    </Tag>
+                    {record.tracking?.alert_sent && (
+                        <Tag color="orange" style={{ borderRadius: '12px' }}>
+                            Alert Sent
+                        </Tag>
+                    )}
+                </Space>
+            ),
         },
         {
             title: 'Action',
@@ -107,7 +127,7 @@ const Quotations = () => {
                         PDF
                     </Button>}
                     <Button info type="link"
-                    onClick={()=>openDetails(record._id)}
+                        onClick={() => openDetails(record._id)}
                     //  icon={<FiTrash />} 
                     //  loading={deletingId === record._id}
                     >

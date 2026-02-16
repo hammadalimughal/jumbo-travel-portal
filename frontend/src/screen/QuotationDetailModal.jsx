@@ -3,7 +3,7 @@ import { Modal, Descriptions, Table, Tag, Button, Spin, Typography, Divider, Row
 import { DownloadOutlined, PrinterOutlined, ReloadOutlined, CloseOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { API_BASE } from '../config/data';
-
+import { Select, message, Switch  } from 'antd';
 const { Title, Text } = Typography;
 
 const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
@@ -11,6 +11,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    const [updatingTracking, setUpdatingTracking] = useState(false);
     // Fetch details whenever the modal opens with a specific ID
     useEffect(() => {
         if (open && quotationId) {
@@ -28,7 +29,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
         try {
             // API call to your Node.js backend on port 6947
             const res = await fetch(`${API_BASE}/quotation/detail/${quotationId}`);
-            
+
             if (!res.ok) {
                 throw new Error(`Server responded with status: ${res.status}`);
             }
@@ -47,6 +48,31 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
         }
     };
 
+    const handleTrackingChange = async (field, value) => {
+        setUpdatingTracking(true);
+        try {
+            const res = await fetch(`${API_BASE}/quotation/update-tracking/${quotationId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ [field]: value }) // Dynamic field update
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                setData({
+                    ...data,
+                    tracking: { ...data.tracking, [field]: value }
+                });
+                message.success(`${field.replace(/_/g, ' ')} updated successfully`);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (err) {
+            message.error(err.message || 'Failed to update tracking');
+        } finally {
+            setUpdatingTracking(false);
+        }
+    };
     return (
         <Modal
             // Title explicitly set to normal style to avoid brand italics bug
@@ -57,13 +83,21 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
             onCancel={onCancel}
             width={1000}
             centered
-            destroyOnClose
+            destroyOnHidden
             footer={[
                 <Button key="close" icon={<CloseOutlined />} onClick={onCancel}>
                     Close
                 </Button>,
                 data && (
-                    <Button key="print" icon={<PrinterOutlined />} onClick={() => window.print()}>
+                    <Button key="print" icon={<PrinterOutlined />} onClick={() => {
+                        const printWindow = window.open(data?.invoice, '_blank');
+                        if (printWindow) {
+                            printWindow.focus();
+                            // Note: For PDFs, many browsers provide their own print button, 
+                            // but this triggers the system dialog for HTML-based views.
+                            printWindow.print();
+                        }
+                    }}>
                         Print
                     </Button>
                 ),
@@ -96,23 +130,30 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
                 ) : data ? (
                     <div className="quotation-print-container">
                         {/* Header Branding Section */}
-                        <Row justify="space-between" align="middle">
-                            <Col>
-                                {/* <Title level={2} style={{ color: '#E02D0D', margin: 0, letterSpacing: '-1px' }}>
-                                    ZAARVEL
-                                </Title> */}
+
+                        <Divider orientation="left">Workflow Tracking</Divider>
+                        <Row gutter={16} style={{ marginBottom: 20 }}>
+                            <Col span={12}>
+                                <Space>
+                                    <Text>Hotel Booking Done:</Text>
+                                    <Switch
+                                        loading={updatingTracking}
+                                        checked={data?.tracking?.hotel_booking_done}
+                                        onChange={(checked) => handleTrackingChange('hotel_booking_done', checked)}
+                                    />
+                                </Space>
                             </Col>
-                            <Col style={{ textAlign: 'right' }}>
-                                <Tag color={data.status === 'Confirmed' ? 'green' : 'blue'} style={{ marginBottom: 8 }}>
-                                    {data.status?.toUpperCase() || 'DRAFT'}
-                                </Tag>
-                                <div>
-                                    <Text strong>Date:</Text> {dayjs(data.created_at).format('DD MMM YYYY')}
-                                </div>
+                            <Col span={12}>
+                                <Space>
+                                    <Text>Responded to Client:</Text>
+                                    <Switch
+                                        loading={updatingTracking}
+                                        checked={data?.tracking?.responded_to_client}
+                                        onChange={(checked) => handleTrackingChange('responded_to_client', checked)}
+                                    />
+                                </Space>
                             </Col>
                         </Row>
-
-                        <Divider style={{ margin: '16px 0' }} />
 
                         {/* Customer & Passenger Summary */}
                         <Descriptions bordered size="small" column={{ xs: 1, sm: 2 }} title="Quotation Summary">
@@ -130,9 +171,9 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
 
                         {/* Flight Details Table */}
                         <Title level={5} style={{ marginTop: 24, fontStyle: 'normal' }}>Flight Itinerary</Title>
-                        <Table 
-                            dataSource={data.flights} 
-                            pagination={false} 
+                        <Table
+                            dataSource={data.flights}
+                            pagination={false}
                             size="small"
                             rowKey="_id"
                             columns={[
@@ -140,14 +181,14 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
                                 { title: 'Date', dataIndex: 'departureDateTime', render: d => dayjs(d).format('DD-MM-YYYY') },
                                 { title: 'Departure', render: (_, r) => `${r.from} (${dayjs(r.departureDateTime).format('HH:mm')})` },
                                 { title: 'Arrival', render: (_, r) => `${r.to} (${dayjs(r.arrivalDateTime).format('HH:mm')})` },
-                            ]} 
+                            ]}
                         />
 
                         {/* Hotel Details Table */}
                         <Title level={5} style={{ marginTop: 24, fontStyle: 'normal' }}>Accommodation</Title>
-                        <Table 
-                            dataSource={data.hotels} 
-                            pagination={false} 
+                        <Table
+                            dataSource={data.hotels}
+                            pagination={false}
                             size="small"
                             rowKey="_id"
                             columns={[
@@ -156,7 +197,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
                                 { title: 'Meal Plan', dataIndex: 'meal_plan' },
                                 { title: 'Nights', dataIndex: 'nights', align: 'center' },
                                 { title: 'Check-in', dataIndex: 'check_in', render: d => dayjs(d).format('DD-MM-YYYY') },
-                            ]} 
+                            ]}
                         />
 
                         {/* Pricing and Totals Section */}

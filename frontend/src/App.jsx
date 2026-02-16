@@ -16,9 +16,10 @@ import {
   LogoutOutlined,
   SearchOutlined,
   DashboardOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { lightTheme, darkTheme } from './config/theme';
-import { Layout, Menu, theme, Button, ConfigProvider, Switch, Result } from 'antd';
+import { Layout, Menu, theme, Button, ConfigProvider, Switch, Result, Modal } from 'antd';
 const { Header, Content, Footer, Sider } = Layout;
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
@@ -32,6 +33,7 @@ import Dashboard from './screen/Dashboard';
 import Quotations from './screen/Quotations';
 import Hotels from './screen/Hotels';
 import NewQuotation from './screen/NewQuotation';
+import PendingQuotations from './screen/PendingQuotations';
 
 
 const items = [
@@ -49,6 +51,11 @@ const items = [
     key: '/quotations',
     icon: <ProjectOutlined />,
     label: 'Quotations'
+  },
+  {
+    key: '/pending-quotations',
+    icon: <ProjectOutlined />,
+    label: 'Pending Quotations'
   },
   {
     key: 'log-out',
@@ -133,8 +140,25 @@ const App = () => {
 
   const handleMenuChange = ({ key }) => {
     if (key === 'log-out') {
-      logout();
-      navigate('/login');
+      // logout();
+      // navigate('/login');
+      // return;
+      Modal.confirm({
+        title: 'Are you sure you want to log out?',
+        icon: <ExclamationCircleOutlined />,
+        content: 'Any unsaved quotation changes might be lost.',
+        okText: 'Yes, Logout',
+        okType: 'danger',
+        centered: true,
+        cancelText: 'No',
+        onOk() {
+          logout();
+          navigate('/login');
+        },
+        onCancel() {
+          console.log('Logout cancelled');
+        },
+      });
       return;
     }
     navigate(key)
@@ -200,6 +224,10 @@ const App = () => {
                     } />
                     <Route path='/quotations' element={<ProtectedRoute>
                       <Quotations isDark={isDark} />
+                    </ProtectedRoute>
+                    } />
+                    <Route path='/pending-quotations' element={<ProtectedRoute>
+                      <PendingQuotations isDark={isDark} />
                     </ProtectedRoute>
                     } />
                     <Route path='/new-quotation' element={<ProtectedRoute>
