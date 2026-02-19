@@ -187,7 +187,7 @@ export const AuthProvider = ({ children }) => {
     const logout = React.useCallback(async () => {
         try {
             await fetch(`${API_BASE}/auth/logout`, { method: 'GET', credentials: 'include' });
-        } catch {}
+        } catch { }
         Cookies.remove('authtoken');
         setAuthToken(null);
         setIsAuthenticated(false);

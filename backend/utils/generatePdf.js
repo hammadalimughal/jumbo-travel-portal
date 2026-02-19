@@ -3,7 +3,18 @@ const pdf = require('html-pdf');
 const path = require('path')
 const createPdfHtml = (data) => {
     // console.log(JSON.stringify(data))
+    const rawDate = data.travel_date;
+    const [year, month, day] = rawDate.split('-');
+    const formattedDate = `${day}-${month}-${year}`;
+    const refactorDate = (dateStr) => {
+        if (!dateStr) return "N/A";
 
+        // Split by hyphen and destructure
+        const [year, month, day] = dateStr.split('-');
+
+        // Return in the desired order
+        return `${day}-${month}-${year}`;
+    };
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -28,7 +39,7 @@ const createPdfHtml = (data) => {
         
         /* Table Styling */
         table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { background-color: #f9fafb; border: 1px solid #d1d5db; padding: 8px; font-size: 10px; text-align: left; text-transform: uppercase; }
+        th { background-color: #f9fafb; border: 1px solid #d1d5db; padding: 3px 5px; font-size: 10px; text-align: left; text-transform: uppercase; }
         td { border: 1px solid #d1d5db; padding: 8px; font-size: 11px; }
         
         /* Pricing Box */
@@ -64,8 +75,10 @@ const createPdfHtml = (data) => {
             </div>
             <div class="col text-right" style="font-size: 12px; line-height: 1.6;">
                 <p><strong>Quotation No:</strong> ${data.quotation_no}</p>
-                <p><strong>Date:</strong> ${data.travel_date}</p>
+                <p><strong>Date:</strong> ${refactorDate(data.travel_date)}</p>
                 <p>Total Package Price: <span class="text-blue">£${data.totalPrice.toFixed(2)}</span></p>
+                <p>Email: <span>sales@jumbotraveluk.com</span></p>
+                <p>Email: <span>02073878264</span></p>
             </div>
         </div>
 
@@ -83,17 +96,17 @@ const createPdfHtml = (data) => {
                 </tr>
             </thead>
             <tbody>
-            ${data.flights.map((item)=>(
-                `<tr>
+            ${data.flights.map((item) => (
+        `<tr>
                     <td>${item.airline}</td>
                     <td>${item.flightNumber}</td>
-                    <td>${item.departureISO.split('T')[0]}</td>
+                    <td>${refactorDate(item.departureISO.split('T')[0])}</td>
                     <td>${item.from}</td>
                     <td>${item.to}</td>
-                    <td>${item.departureISO.split('T')[1].split(':').slice(0,2).join(':')}</td>
-                    <td>${item.arrivalISO.split('T')[1].split(':').slice(0,2).join(':')}</td>
+                    <td>${item.departureISO.split('T')[1].split(':').slice(0, 2).join(':')}</td>
+                    <td>${item.arrivalISO.split('T')[1].split(':').slice(0, 2).join(':')}</td>
                 </tr>`
-            )).join('')}
+    )).join('')}
             </tbody>
         </table>
 
@@ -114,8 +127,8 @@ const createPdfHtml = (data) => {
                     <td>${item.name}</td>
                     <td>${item.noOfRooms}</td>
                     <td>${item.room_type}</td>
-                    <td>${item.check_in.split('T')[1].split(':').slice(0, 2).join(':')}<br>${new Date(item.check_in.split('T')[0]).toDateString()}</td>
-                    <td>${item.check_out.split('T')[1].split(':').slice(0, 2).join(':')}<br>${new Date(item.check_out.split('T')[0]).toDateString()}</td>
+                    <td>${refactorDate(item.check_in.split('T')[0])}</td>
+                    <td>${refactorDate(item.check_out.split('T')[0])}</td>
                     <td>${item.meal_plan}</td>
                     <td>${item.nights}</td>
                 </tr>`).join('')}
@@ -154,19 +167,19 @@ const createPdfHtml = (data) => {
         <p><strong>Passengers:</strong> ${data.passengers_names}</p>
         ${data.notes ? `<div class="header-section">Notes</div>
         <div class="disclaimer-section">
-            ${data.notes.split('\n').map((item)=>`
+            ${data.notes.split('\n').map((item) => `
                 <p>${item}</p>
             `).join('')}
         </div>` : ''}
         ${data.special_conditions ? `<div class="header-section" style="margin-top: 30px">Special Conditions</div>
         <div class="disclaimer-section">
-            ${data.special_conditions.split('\n').map((item)=>`
+            ${data.special_conditions.split('\n').map((item) => `
                 <p>${item}</p>
             `).join('')}
         </div>` : ''}
         ${data.cancellation_policy ? `<div class="header-section" style="margin-top: 30px">Cancellation Policy</div>
         <div class="disclaimer-section">
-            ${data.cancellation_policy.split('\n').map((item)=>`
+            ${data.cancellation_policy.split('\n').map((item) => `
                 <p>${item}</p>
             `).join('')}
         </div>` : ''}

@@ -72,6 +72,14 @@ const QuotationSchema = new mongoose.Schema({
     quotation_no: { type: String, unique: true }, // e.g., QA|10136
     invoice: { type: String }, // e.g., QA|10136
     created_at: { type: Date, default: Date.now },
+    is_trashed: { 
+        type: Boolean, 
+        default: false 
+    },
+    deleted_at: { 
+        type: Date, 
+        default: null 
+    },
     created_by: {
         type: mongoose.Schema.Types.ObjectId, ref: 'User'
     }

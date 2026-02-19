@@ -34,6 +34,7 @@ import Quotations from './screen/Quotations';
 import Hotels from './screen/Hotels';
 import NewQuotation from './screen/NewQuotation';
 import PendingQuotations from './screen/PendingQuotations';
+import TrashedQuotations from './screen/TrashedQuotations';
 
 
 const items = [
@@ -56,6 +57,11 @@ const items = [
     key: '/pending-quotations',
     icon: <ProjectOutlined />,
     label: 'Pending Quotations'
+  },
+  {
+    key: '/trash-quotations',
+    icon: <DeleteOutlined />,
+    label: 'Trashed Quotations'
   },
   {
     key: 'log-out',
@@ -228,6 +234,10 @@ const App = () => {
                     } />
                     <Route path='/pending-quotations' element={<ProtectedRoute>
                       <PendingQuotations isDark={isDark} />
+                    </ProtectedRoute>
+                    } />
+                    <Route path='/trash-quotations' element={<ProtectedRoute>
+                      <TrashedQuotations isDark={isDark} />
                     </ProtectedRoute>
                     } />
                     <Route path='/new-quotation' element={<ProtectedRoute>

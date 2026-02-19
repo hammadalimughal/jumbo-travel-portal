@@ -166,6 +166,7 @@ const Quotations = () => {
                 pagination={{ pageSize: 10 }}
             />
             <QuotationDetailModal
+                fetchQuotations={fetchQuotations}
                 open={modalOpen}
                 quotationId={viewId}
                 onCancel={() => setModalOpen(false)}

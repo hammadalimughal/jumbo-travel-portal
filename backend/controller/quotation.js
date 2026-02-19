@@ -26,7 +26,22 @@ router.post('/process-raw-codes', async (req, res) => {
 
 router.get('/fetch', async (req, res) => {
     try {
-        const quotations = await Quotation.find().sort({created_at: -1}).lean()
+        const quotations = await Quotation.find({ is_trashed: { $ne: true } }).sort({ created_at: -1 }).lean()
+        res.json({
+            success: true,
+            data: quotations
+        })
+    } catch (error) {
+        res.json({
+            success: false,
+            error: error.message
+        })
+    }
+})
+
+router.get('/trash', async (req, res) => {
+    try {
+        const quotations = await Quotation.find({ is_trashed: true }).sort({ created_at: -1 }).lean()
         res.json({
             success: true,
             data: quotations
@@ -54,6 +69,39 @@ router.get('/detail/:id', async (req, res) => {
         })
     }
 })
+
+router.patch('/mark-trash/:id', async (req, res) => {
+    try {
+        const { id } = req.params
+        const quotation = await Quotation.findByIdAndUpdate(id, {
+            is_trashed: true,
+            deleted_at: Date.now()
+        });
+        res.json({
+            success: true,
+            data: quotation
+        })
+    } catch (error) {
+        res.json({
+            success: false,
+            error: error.message
+        })
+    }
+})
+
+router.patch('/restore-trash/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const quotation = await Quotation.findByIdAndUpdate(id, {
+            is_trashed: false, // Changed to false to restore
+            deleted_at: null   // Clear the deletion date
+        }, { new: true });
+        
+        res.json({ success: true, data: quotation });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
 
 router.post('/generate-invoice', async (req, res) => {
     try {
@@ -114,6 +162,7 @@ router.get('/dashboard-stats', async (req, res) => {
 
     try {
         const stats = await Quotation.aggregate([
+            { $match: { is_trashed: { $ne: true } } },
             {
                 $group: {
                     _id: { $dateToString: { format: groupFormat, date: "$created_at" } },
@@ -144,7 +193,7 @@ router.get('/fetch-pending-travel', async (req, res) => {
                 { 'tracking.responded_to_client': false }
             ]
         }).sort({ travel_date: 1 });
-        console.log('pending',pending)
+        console.log('pending', pending)
         res.json({ success: true, data: pending });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

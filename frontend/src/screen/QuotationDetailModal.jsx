@@ -3,13 +3,47 @@ import { Modal, Descriptions, Table, Tag, Button, Spin, Typography, Divider, Row
 import { DownloadOutlined, PrinterOutlined, ReloadOutlined, CloseOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { API_BASE } from '../config/data';
-import { Select, message, Switch  } from 'antd';
+import { Select, message, Switch } from 'antd';
 const { Title, Text } = Typography;
 
-const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
+const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [isTrashing, setIsTrashing] = useState(false);
+
+    const handleMoveToTrash = async () => {
+        Modal.confirm({
+            title: 'Move to Trash?',
+            content: 'This quotation will be moved to the trash. You can restore it later from the Trash folder.',
+            okText: 'Move to Trash',
+            okType: 'danger',
+            cancelText: 'Cancel',
+            onOk: async () => {
+                setIsTrashing(true);
+                try {
+                    const res = await fetch(`${API_BASE}/quotation/mark-trash/${quotationId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    const result = await res.json();
+                    if (result.success) {
+                        message.success('Quotation moved to trash');
+                        onCancel(); // Close the modal
+                        fetchQuotations()
+                        // Optional: If you have a refresh function in parent, call it here
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } catch (err) {
+                    message.error(err.message || 'Failed to move to trash');
+                } finally {
+                    setIsTrashing(false);
+                }
+            },
+        });
+    };
 
     const [updatingTracking, setUpdatingTracking] = useState(false);
     // Fetch details whenever the modal opens with a specific ID
@@ -84,20 +118,49 @@ const QuotationDetailModal = ({ open, onCancel, quotationId }) => {
             width={1000}
             centered
             destroyOnHidden
+            // footer={[
+            //     <Button key="close" icon={<CloseOutlined />} onClick={onCancel}>
+            //         Close
+            //     </Button>,
+            //     data && (
+            //         <Button key="print" icon={<PrinterOutlined />} onClick={() => {
+            //             const printWindow = window.open(data?.invoice, '_blank');
+            //             if (printWindow) {
+            //                 printWindow.focus();
+            //                 // Note: For PDFs, many browsers provide their own print button, 
+            //                 // but this triggers the system dialog for HTML-based views.
+            //                 printWindow.print();
+            //             }
+            //         }}>
+            //             Print
+            //         </Button>
+            //     ),
+            //     data && (
+            //         <Button key="download" type="primary" icon={<DownloadOutlined />} href={data?.invoice} target="_blank">
+            //             Download PDF
+            //         </Button>
+            //     )
+            // ]}
             footer={[
+                // Add Move to Trash at the start of the footer
+                data && (
+                    <Button
+                        key="trash"
+                        danger
+                        type="text"
+                        loading={isTrashing}
+                        icon={<ReloadOutlined style={{ transform: 'rotate(45deg)' }} />} // Using a rotated icon as a proxy for trash if DeleteOutlined isn't imported
+                        onClick={handleMoveToTrash}
+                        style={{ float: 'left' }} // Align to the left side
+                    >
+                        Move to Trash
+                    </Button>
+                ),
                 <Button key="close" icon={<CloseOutlined />} onClick={onCancel}>
                     Close
                 </Button>,
                 data && (
-                    <Button key="print" icon={<PrinterOutlined />} onClick={() => {
-                        const printWindow = window.open(data?.invoice, '_blank');
-                        if (printWindow) {
-                            printWindow.focus();
-                            // Note: For PDFs, many browsers provide their own print button, 
-                            // but this triggers the system dialog for HTML-based views.
-                            printWindow.print();
-                        }
-                    }}>
+                    <Button key="print" icon={<PrinterOutlined />} onClick={() => {/* print logic */ }}>
                         Print
                     </Button>
                 ),

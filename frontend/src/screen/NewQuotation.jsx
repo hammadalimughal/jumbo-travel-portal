@@ -7,9 +7,11 @@ dayjs.extend(utc);
 import { useDataContext } from '../context/DataContext';
 import { API_BASE } from '../config/data';
 import { useNavigate } from 'react-router-dom'
+import { useAuthContext } from '../context/AuthContext';
 const { Title } = Typography;
 
 const NewQuotation = ({ isDark }) => {
+  const { user } = useAuthContext()
   const navigate = useNavigate();
   const [price, setPrice] = useState({
     adults: 0,
@@ -206,6 +208,7 @@ const NewQuotation = ({ isDark }) => {
       // Format dates
       const formData = {
         ...values,
+        created_by: user.id,
         travel_date: values.travel_date ? values.travel_date.format('YYYY-MM-DD') : null,
         check_in: values.check_in ? values.check_in.format('YYYY-MM-DD') : null,
         check_out: values.check_out ? values.check_out.format('YYYY-MM-DD') : null,
@@ -618,7 +621,7 @@ const NewQuotation = ({ isDark }) => {
                       </Form.Item>
                     </Col>
 
-                    {/* 6. Nights - REQUIRED */}                    
+                    {/* 6. Nights - REQUIRED */}
                     <Col xs={24} sm={12} md={8}>
                       <Form.Item
                         label="Nights"
