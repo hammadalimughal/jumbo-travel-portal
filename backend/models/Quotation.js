@@ -9,8 +9,26 @@ const FlightSegmentSchema = new mongoose.Schema({
     airline: { type: String }
 });
 
+const RoomConfigSchema = new mongoose.Schema({
+    room_type: {
+        type: String,
+        enum: ["Single", "Double", "Triple", "Quad", "Suites", "Family Room"]
+    },
+    noOfRooms: { type: Number, default: 1 },
+    meal_plan: {
+        type: String,
+        enum: ["Room Only", "Breakfast", "Half Board", "Full Board"]
+    }
+});
+
 const HotelBookingSchema = new mongoose.Schema({
     hotel_id: { type: mongoose.Schema.Types.ObjectId, ref: 'hotel' }, // Reference to your DataContext hotels
+    check_in: { type: Date },
+    check_out: { type: Date },
+    nights: { type: Number, default: 0 },
+    rooms: [RoomConfigSchema], // Support multiple rooms
+
+    // Retained for backward compatibility
     room_type: {
         type: String,
         enum: ["Single", "Double", "Triple", "Quad", "Suites", "Family Room"]
@@ -19,9 +37,6 @@ const HotelBookingSchema = new mongoose.Schema({
         type: String,
         enum: ["Room Only", "Breakfast", "Half Board", "Full Board"]
     },
-    check_in: { type: Date },
-    check_out: { type: Date },
-    nights: { type: Number, default: 0 },
     noOfRooms: { type: Number, default: 1 }
 });
 
@@ -30,7 +45,11 @@ const QuotationSchema = new mongoose.Schema({
     customer_name: { type: String, required: true },
     customer_email: { type: String },
     customer_phone: { type: String },
-
+    bookingType: {
+        type: String,
+        enum: ['Group', 'Individual'],
+        default: 'Individual'
+    },
     // Travel Details
     travel_date: { type: Date, required: true },
     passengers_names: { type: String }, // Stored as the joined string from your parser
@@ -72,13 +91,13 @@ const QuotationSchema = new mongoose.Schema({
     quotation_no: { type: String, unique: true }, // e.g., QA|10136
     invoice: { type: String }, // e.g., QA|10136
     created_at: { type: Date, default: Date.now },
-    is_trashed: { 
-        type: Boolean, 
-        default: false 
+    is_trashed: {
+        type: Boolean,
+        default: false
     },
-    deleted_at: { 
-        type: Date, 
-        default: null 
+    deleted_at: {
+        type: Date,
+        default: null
     },
     created_by: {
         type: mongoose.Schema.Types.ObjectId, ref: 'User'
@@ -93,17 +112,50 @@ const Counter = mongoose.model('Counter', CounterSchema);
 
 QuotationSchema.pre('save', async function () {
     // Check if the document is new
-    if (!this.isNew) return;
 
     try {
-        const counter = await Counter.findOneAndUpdate(
-            { id: 'quotationId' },
-            { $inc: { seq: 1 } },
-            { new: true, upsert: true }
-        );
+        if (this.isNew) {
+            const counter = await Counter.findOneAndUpdate(
+                { id: 'quotationId' },
+                { $inc: { seq: 1 } },
+                { new: true, upsert: true }
+            );
 
-        // Sets the auto-generated number for your "webversedesigns" brand
-        this.quotation_no = `QA-${counter.seq}`;
+            // Sets the auto-generated number for your "webversedesigns" brand
+            this.quotation_no = `QA-${counter.seq}`;
+        }
+
+        if (this.travel_date) {
+            const d = new Date(this.travel_date);
+            d.setUTCHours(0, 0, 0, 0); // Normalize to midnight UTC
+            this.travel_date = d;
+        }
+
+        if (this.flights && this.flights.length > 0) {
+            this.flights.forEach(flight => {
+                if (flight.date) {
+                    const fd = new Date(flight.date);
+                    fd.setUTCHours(0, 0, 0, 0);
+                    flight.date = fd;
+                }
+            });
+        }
+
+        if (this.hotels && this.hotels.length > 0) {
+            this.hotels.forEach(item => {
+                if (item.check_in) {
+                    const cid = new Date(item.check_in);
+                    cid.setUTCHours(0, 0, 0, 0);
+                    item.check_in = cid;
+                }
+                if (item.check_out) {
+                    const cod = new Date(item.check_out);
+                    cod.setUTCHours(0, 0, 0, 0);
+                    item.check_out = cod;
+                }
+            });
+        }
+
     } catch (error) {
         // In async hooks, throwing the error is the correct way to stop the save
         throw error;

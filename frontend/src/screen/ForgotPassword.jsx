@@ -69,14 +69,6 @@ const ForgotPassword = ({ isDark }) => {
               </Button>
             </Link>
           </Form.Item>
-          <div style={{ textAlign: 'center', marginTop: 12 }}>
-            <Typography.Text type="secondary">
-              Don't have an account?{' '}
-              <Link to="/register" style={{ color: '#1890ff' }}>
-                Register hereauthL
-              </Link>
-            </Typography.Text>
-          </div>
         </Form>
       </Card>
     </div>

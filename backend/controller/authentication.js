@@ -129,7 +129,7 @@ router.post('/forgot-password', async (req, res) => {
         });
 
         // Send OTP email
-        const emailSubject = 'Password Reset OTP - Mandha Construction';
+        const emailSubject = 'Password Reset OTP - Jumbo Travel';
         const emailBody = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #333;">Password Reset Request</h2>
@@ -141,7 +141,7 @@ router.post('/forgot-password', async (req, res) => {
                 <p style="color: #666;">This OTP will expire in 10 minutes.</p>
                 <p style="color: #666;">If you didn't request this password reset, please ignore this email.</p>
                 <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                <p style="font-size: 12px; color: #999;">Mandha Construction Team</p>
+                <p style="font-size: 12px; color: #999;">Jumbo Travel Team</p>
             </div>
         `;
         try {
@@ -213,7 +213,7 @@ router.post('/resend-otp', async (req, res) => {
         });
 
         // Send OTP email
-        const emailSubject = 'Password Reset OTP - Mandha Construction';
+        const emailSubject = 'Password Reset OTP - Jumbo Travel';
         const emailBody = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <h2 style="color: #333;">Password Reset Request</h2>
@@ -225,7 +225,7 @@ router.post('/resend-otp', async (req, res) => {
                 <p style="color: #666;">This OTP will expire in 10 minutes.</p>
                 <p style="color: #666;">If you didn't request this password reset, please ignore this email.</p>
                 <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                <p style="font-size: 12px; color: #999;">Mandha Construction Team</p>
+                <p style="font-size: 12px; color: #999;">Jumbo Travel Team</p>
             </div>
         `;
         try {

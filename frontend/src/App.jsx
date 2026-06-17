@@ -16,7 +16,9 @@ import {
   LogoutOutlined,
   SearchOutlined,
   DashboardOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  SunOutlined,
+  MoonOutlined
 } from '@ant-design/icons';
 import { lightTheme, darkTheme } from './config/theme';
 import { Layout, Menu, theme, Button, ConfigProvider, Switch, Result, Modal } from 'antd';
@@ -35,7 +37,8 @@ import Hotels from './screen/Hotels';
 import NewQuotation from './screen/NewQuotation';
 import PendingQuotations from './screen/PendingQuotations';
 import TrashedQuotations from './screen/TrashedQuotations';
-
+import NewGroupQuotation from './screen/NewGroupQuotation';
+import EditQuotation from './screen/EditQuotation';
 
 const items = [
   {
@@ -58,11 +61,11 @@ const items = [
     icon: <ProjectOutlined />,
     label: 'Pending Quotations'
   },
-  {
-    key: '/trash-quotations',
-    icon: <DeleteOutlined />,
-    label: 'Trashed Quotations'
-  },
+  // {
+  //   key: '/trash-quotations',
+  //   icon: <DeleteOutlined />,
+  //   label: 'Trashed Quotations'
+  // },
   {
     key: 'log-out',
     icon: <LogoutOutlined />,
@@ -174,7 +177,17 @@ const App = () => {
     <ConfigProvider
       theme={isDark ? darkTheme : lightTheme}
     >
-      {!isAuthenticated ? <LogIn isDark={isDark} /> :
+      {!isAuthenticated ? (
+         <Routes>
+           <Route path="/login" element={<LogIn isDark={isDark} />} />
+           {/* <Route path="/register" element={<Register isDark={isDark} />} /> */}
+           <Route path="/forgot-password" element={<ForgotPassword isDark={isDark} />} />
+           <Route path="/verify-otp" element={<VerifyOTP isDark={isDark} />} />
+           <Route path="/reset-password" element={<ResetPassword isDark={isDark} />} />
+           {/* Catch-all for unauthenticated users redirects to login */}
+           <Route path="*" element={<LogIn isDark={isDark} />} />
+         </Routes>
+      ) :
         <Layout hasSider>
           <Sider collapsed={collapsed} style={siderStyle}>
             <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', padding: collapsed ? '10px' : '30px 20px' }}>
@@ -204,9 +217,16 @@ const App = () => {
                   height: 64,
                 }}
               />
-              <Switch checked={isDark} onChange={() => {
-                setIsDark(!isDark)
-              }} />
+              <Button
+                onClick={() => setIsDark(!isDark)}
+                className={`theme-toggle-btn ${isDark ? 'dark' : 'light'}`}
+                icon={isDark ? <MoonOutlined /> : <SunOutlined />}
+                style={{
+                  width: 42,
+                  height: 42,
+                  marginRight: 20
+                }}
+              />
             </Header>
             <Content style={{ margin: '24px 16px 0', overflow: 'initial' }}>
               <div
@@ -236,12 +256,20 @@ const App = () => {
                       <PendingQuotations isDark={isDark} />
                     </ProtectedRoute>
                     } />
-                    <Route path='/trash-quotations' element={<ProtectedRoute>
+                    {/* <Route path='/trash-quotations' element={<ProtectedRoute>
                       <TrashedQuotations isDark={isDark} />
                     </ProtectedRoute>
-                    } />
+                    } /> */}
                     <Route path='/new-quotation' element={<ProtectedRoute>
                       <NewQuotation isDark={isDark} />
+                    </ProtectedRoute>
+                    } />
+                    <Route path='/new-group-quotation' element={<ProtectedRoute>
+                      <NewGroupQuotation isDark={isDark} />
+                    </ProtectedRoute>
+                    } />
+                    <Route path='/edit-quotation/:id' element={<ProtectedRoute>
+                      <EditQuotation isDark={isDark} />
                     </ProtectedRoute>
                     } />
                     <Route path='*' element={<Result

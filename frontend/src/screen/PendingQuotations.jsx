@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, List, Tag, Badge, Empty, Spin, Button } from 'antd';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+dayjs.extend(utc);
 import { API_BASE } from '../config/data';
 import QuotationDetailModal from './QuotationDetailModal';
 
@@ -37,10 +39,10 @@ const PendingQuotations = () => {
                 locale={{ emptyText: <Empty description="All upcoming trips are fully processed!" /> }}
                 renderItem={(item) => (
                     <List.Item>
-                        <Badge.Ribbon text={`${dayjs(item.travel_date).diff(dayjs(), 'day')} days left`} color="red">
+                        <Badge.Ribbon text={`${dayjs.utc(item.travel_date).startOf('day').diff(dayjs().startOf('day'), 'day')} days left`} color="red">
                             <Card title={item.customer_name} size="small">
                                 <p><b>ID:</b> {item.quotation_no}</p>
-                                <p><b>Date:</b> {dayjs(item.travel_date).format('DD MMM YYYY')}</p>
+                                <p><b>Date:</b> {dayjs.utc(item.travel_date).format('DD MMM YYYY')}</p>
                                 <div style={{ marginTop: '10px' }}>
                                     {!item.tracking?.is_confirmed && <Tag color="error">Confirmation Missing</Tag>}
                                     {!item.tracking?.hotel_booking_done && <Tag color="warning">Hotel Not Booked</Tag>}

@@ -43,6 +43,14 @@ const userSchema = new Schema({
         type: Number,
         default: 0,
         min: 0,
+    },
+    resetPasswordOTP: {
+        type: String,
+        default: null
+    },
+    resetPasswordOTPExpires: {
+        type: Date,
+        default: null
     }
 }, { timestamps: true });
 

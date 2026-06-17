@@ -1,36 +1,20 @@
 const airportsData = require("aircodes");
 
-// const passengerFormat = {
-//     MR: { label: "Adult Male", category: "adult" },
-//     MRS: { label: "Married Female", category: "adult" },
-//     MS: { label: "Adult Female", category: "adult" },
-//     MISS: { label: "Female (usually under 18)", category: "children" },
-//     MSTR: { label: "Male Child", category: "children" },
-//     CHD: { label: "Child", category: "children" },
-//     INF: { label: "Infant", category: "infant" },
-// };
 const passengerFormat = {
-    // Standard Adults
     MR: { label: "Adult Male", category: "adult" },
     MRS: { label: "Married Female", category: "adult" },
     MS: { label: "Adult Female", category: "adult" },
-
-    // Seniors (Discounted)
-    SRC: { label: "Senior Adult", category: "senior" }, //
+    SRC: { label: "Senior Adult", category: "senior" },
     SNN: { label: "Senior Citizen", category: "senior" },
-
-    // Youth (Ages 12-15) - Often £50 cheaper than Adult
-    C12: { label: "Youth (12 years)", category: "youth" }, //
-    C13: { label: "Youth (13 years)", category: "youth" }, //
-    C14: { label: "Youth (14 years)", category: "youth" }, //
-    C15: { label: "Youth (15 years)", category: "youth" }, //
-    YTH: { label: "Youth", category: "youth" },
-
-    // Children (Ages 2-11)
-    CHD: { label: "Child", category: "children" }, //
-    C03: { label: "Child (3 years)", category: "children" }, //
-    C04: { label: "Child (4 years)", category: "children" }, //
-    C05: { label: "Child (5 years)", category: "children" }, //
+    C12: { label: "Youth (12 years)", category: "adult" }, // Category Adult hai
+    C13: { label: "Youth (13 years)", category: "adult" },
+    C14: { label: "Youth (14 years)", category: "adult" },
+    C15: { label: "Youth (15 years)", category: "adult" },
+    YTH: { label: "Youth", category: "adult" },
+    CHD: { label: "Child", category: "children" },
+    C03: { label: "Child (3 years)", category: "children" },
+    C04: { label: "Child (4 years)", category: "children" },
+    C05: { label: "Child (5 years)", category: "children" },
     C06: { label: "Child (6 years)", category: "children" },
     C07: { label: "Child (7 years)", category: "children" },
     C08: { label: "Child (8 years)", category: "children" },
@@ -39,149 +23,92 @@ const passengerFormat = {
     C11: { label: "Child (11 years)", category: "children" },
     MSTR: { label: "Male Child", category: "children" },
     MISS: { label: "Female Child", category: "children" },
-
-    // Infants (Under 2 years)
     INF: { label: "Infant", category: "infant" },
     IN: { label: "Infant without Seat", category: "infant" },
     INS: { label: "Infant with Seat", category: "infant" },
-
-    // Professional & Official Status
-    MIL: { label: "Military Personnel", category: "military" }, //
-    STU: { label: "Student", category: "student" }, //
-    SEA: { label: "Seaman/Crew", category: "crew" }, //
-    GOV: { label: "Government Official", category: "official" }, //
-    LBR: { label: "Laborer/Worker", category: "worker" }, //
-    CLG: { label: "Clergy", category: "official" }, //
-
-    // Special Assistance
-    BLD: { label: "Blind", category: "assistance" }, //
-    DEAF: { label: "Deaf", category: "assistance" }, //
-    MED: { label: "Medical Case", category: "assistance" }, //
-    DPNA: { label: "Developmental Disability", category: "assistance" }, //
-
-    // Miscellaneous
-    EXST: { label: "Extra Seat", category: "special" }, //
-    BAG: { label: "Cabin Baggage", category: "special" }, //
-    BRV: { label: "Bereavement", category: "special" } //
+    MIL: { label: "Military Personnel", category: "military" },
+    STU: { label: "Student", category: "student" },
+    SEA: { label: "Seaman/Crew", category: "crew" },
+    GOV: { label: "Government Official", category: "official" },
+    LBR: { label: "Laborer/Worker", category: "worker" },
+    CLG: { label: "Clergy", category: "official" },
+    BLD: { label: "Blind", category: "assistance" },
+    DEAF: { label: "Deaf", category: "assistance" },
+    MED: { label: "Medical Case", category: "assistance" },
+    DPNA: { label: "Developmental Disability", category: "assistance" },
+    EXST: { label: "Extra Seat", category: "special" },
+    BAG: { label: "Cabin Baggage", category: "special" },
+    BRV: { label: "Bereavement", category: "special" }
 };
 
 const passengerCodes = Object.keys(passengerFormat);
 
 const isPassenger = (line) => passengerCodes.some((item) => line.includes(item));
 
-// const isFlight = (line) => {
-//     // Allows for optional leading characters like _ before the digit
-//     const flightPattern = /^\s*[^A-Z0-9]?\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
-//     return flightPattern.test(line);
-// };
-
 const isFlight = (line) => {
-    // Allows for optional symbols like * or _ anywhere before the main flight data
-    const flightPattern = /^\s*\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
-    // We strip common symbols for the validation check
     const sanitizedLine = line.replace(/[*_]/g, ' ');
+    const flightPattern = /^\s*\d+[\.\s]+[A-Z0-9]{2}\s*\d{1,4}/i;
     return flightPattern.test(sanitizedLine);
 };
 
-// function formatToISO(gdsDate, gdsTime) {
-//     const months = {
-//         JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
-//         JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
-//     };
-
-//     const day = parseInt(gdsDate.substring(0, 2));
-//     const monthStr = gdsDate.substring(2).toUpperCase();
-//     const month = months[monthStr];
-
-//     const now = new Date();
-//     let year = now.getFullYear();
-
-//     if (month < now.getMonth()) {
-//         year++;
-//     }
-
-//     const hours = gdsTime.substring(0, 2);
-//     const minutes = gdsTime.substring(2, 4);
-
-//     const monthFixed = (month + 1).toString().padStart(2, '0');
-//     const dayFixed = day.toString().padStart(2, '0');
-
-//     return `${year}-${monthFixed}-${dayFixed}T${hours}:${minutes}:00`;
-// }
-
 function formatToISO(gdsDate, gdsTime, referenceDepartureTime = null) {
-    const months = {
-        JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
-        JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11
-    };
-
+    const months = { JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5, JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11 };
     const day = parseInt(gdsDate.substring(0, 2));
     const monthStr = gdsDate.substring(2).toUpperCase();
     const month = months[monthStr];
-
     const now = new Date();
     let year = now.getFullYear();
-
-    // Year rollover logic for flights booked in Dec for Jan
-    if (month < now.getMonth()) {
-        year++;
-    }
-
+    if (month < now.getMonth()) year++;
     let dateObj = new Date(year, month, day);
-    console.log(dateObj)
-    console.log(referenceDepartureTime)
-    // Overnight Logic: If arrival time is earlier than departure time, it's the next day
     if (referenceDepartureTime && parseInt(gdsTime) < parseInt(referenceDepartureTime)) {
         dateObj.setDate(dateObj.getDate() + 1);
     }
-
     const finalYear = dateObj.getFullYear();
     const finalMonth = (dateObj.getMonth() + 1).toString().padStart(2, '0');
     const finalDay = dateObj.getDate().toString().padStart(2, '0');
-
-    const hours = gdsTime.substring(0, 2);
-    const minutes = gdsTime.substring(2, 4);
-
-    return `${finalYear}-${finalMonth}-${finalDay}T${hours}:${minutes}:00`;
+    return `${finalYear}-${finalMonth}-${finalDay}T${gdsTime.substring(0, 2)}:${gdsTime.substring(2, 4)}:00`;
 }
-// FIXED: Now returns an ARRAY of passengers (Adult + Infant)
+
 function parsePassengerLine(line) {
     const passengers = [];
     const indexMatch = line.match(/^(\d+)[\.\s]?/);
     const passengerNumber = indexMatch ? Number(indexMatch[1]) : null;
 
-    // 1. Handle Infant Block - FORCE category to 'infant'
+    // 1. Handle Infant (INF)
     const infantMatch = line.match(/\(INF([^/]+)\/([^)]+)\)/);
     if (infantMatch) {
         const infLastName = infantMatch[1];
         const infFirstPart = infantMatch[2];
-
         const infTitleMatch = passengerCodes.find(code => infFirstPart.endsWith(code));
-        const infFirstName = infTitleMatch ? infFirstPart.slice(0, -infTitleMatch.length) : infFirstPart;
-        const infTitle = infTitleMatch || "INF";
-
         passengers.push({
             passengerNumber,
             lastName: infLastName,
-            firstName: infFirstName || null,
+            firstName: infTitleMatch ? infFirstPart.slice(0, -infTitleMatch.length) : infFirstPart,
             middleName: null,
-            title: infTitle,
-            // FIX: Overriding the lookup to ensure they are categorized as infant
-            type: {
-                label: "Infant",
-                category: "infant"
-            }
+            title: infTitleMatch || "INF",
+            type: { label: "Infant", category: "infant" }
         });
     }
 
-    // 2. Parse Adult
-    let adultSection = line.replace(/^(\d+)[\.\s]?/, '');
-    if (infantMatch) adultSection = adultSection.replace(infantMatch[0], '');
+    // 2. Handle Adult/Child with forced category logic
+    let mainSection = line.replace(/^(\d+)[\.\s]?/, '');
+    if (infantMatch) mainSection = mainSection.replace(infantMatch[0], '');
 
-    const titleMatch = adultSection.match(new RegExp(`\\b(${passengerCodes.join('|')})\\b`));
+    // Check for Category in brackets: (CHD/...) or (C12/...)
+    const bracketMatch = mainSection.match(/\(([^/)]+)\//);
+    let forcedType = null;
+    if (bracketMatch) {
+        const typeCode = bracketMatch[1].toUpperCase();
+        if (passengerFormat[typeCode]) forcedType = passengerFormat[typeCode];
+    }
+
+    // Clean brackets for name parsing
+    const cleanSection = mainSection.replace(/\([^)]+\)/g, '').trim();
+    const titleMatch = cleanSection.match(new RegExp(`\\b(${passengerCodes.join('|')})\\b`, 'i'));
+    
     if (titleMatch) {
-        const title = titleMatch[1];
-        const nameSection = adultSection.replace(new RegExp(`\\s+${title}$`), '').trim();
+        const title = titleMatch[1].toUpperCase();
+        const nameSection = cleanSection.replace(new RegExp(`\\s*${title}\\s*$`, 'i'), '').trim();
         const [lastName, firstPart] = nameSection.split('/');
 
         if (lastName && firstPart) {
@@ -192,61 +119,45 @@ function parsePassengerLine(line) {
                 firstName: nameParts[0],
                 middleName: nameParts.slice(1).join(' ') || null,
                 title,
-                type: passengerFormat[title]
+                type: forcedType || passengerFormat[title] // forcedType (C12) ko priority di
             });
         }
     }
-
     return passengers.length > 0 ? passengers : null;
 }
 
 function parseFlightLine(line) {
-    // UPDATED REGEX:
-    // Added [^A-Z0-9]? after the (\d) to ignore underscores or other stray symbols.
     const flightRegex = /^\s*(\d+)[\.\s]+([A-Z0-9]{2})\s*(\d{1,4})\s*([A-Z])?\s+(\d{2}[A-Z]{3})\s+(\d)[^A-Z0-9]?\s*([A-Z]{6})\s+([A-Z]{2}\d)\s+(\d{4})\s+(\d{4})/i;
-
     const match = line.match(flightRegex);
     if (!match) return null;
-
-    // Destructure the match
     const [_, index, iata, flightNum, bookingClass, date, day, route, status, dep, arr] = match;
-
-    const originCode = route.substring(0, 3);
-    const destinationCode = route.substring(3, 6);
-    const departureISO = formatToISO(date, dep);
-    const arrivalISO = formatToISO(date, arr, dep);
     return {
         segmentNumber: Number(index),
         flightNumber: flightNum,
         airline: airportsData.getAirlineByIata(iata.toUpperCase()),
         class: bookingClass || null,
         date: date,
-        origin: airportsData.getAirportByIata(originCode),
-        destination: airportsData.getAirportByIata(destinationCode),
+        origin: airportsData.getAirportByIata(route.substring(0, 3)),
+        destination: airportsData.getAirportByIata(route.substring(3, 6)),
         status: status,
-        departureISO,
-        arrivalISO
+        departureISO: formatToISO(date, dep),
+        arrivalISO: formatToISO(date, arr, dep)
     };
 }
-const convertFlightCodes = (rawData) => {
-    // FIX: Remove underscores that prevent matching
-    const sanitizedData = rawData.replace(/_/g, ' ');
 
+const convertFlightCodes = (rawData) => {
+    const sanitizedData = rawData.replace(/_/g, ' ');
     const segments = sanitizedData.split(/\n/).map(l => l.trim()).filter(Boolean);
     const result = { passengers: [], flights: [] };
-
     segments.forEach((segment) => {
-        console.log(`${segment} => ${isFlight(segment) ? 'Flight' : isPassenger(segment) ? 'Passenger' : 'Unrecognized'}`)
         if (isFlight(segment)) {
             const f = parseFlightLine(segment);
-            console.log('f', f)
             if (f) result.flights.push(f);
         } else if (isPassenger(segment)) {
             const pList = parsePassengerLine(segment);
             if (pList) result.passengers.push(...pList);
         }
     });
-
     return result;
 };
 

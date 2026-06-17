@@ -2,25 +2,30 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Descriptions, Table, Tag, Button, Spin, Typography, Divider, Row, Col, Space, Alert } from 'antd';
 import { DownloadOutlined, PrinterOutlined, ReloadOutlined, CloseOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+dayjs.extend(utc);
 import { API_BASE } from '../config/data';
 import { Select, message, Switch } from 'antd';
+import { FiTrash, FiTrash2 } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 const { Title, Text } = Typography;
 
 const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) => {
+    const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [isTrashing, setIsTrashing] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    const handleMoveToTrash = async () => {
+    const handleMoveToDelete = async () => {
         Modal.confirm({
-            title: 'Move to Trash?',
-            content: 'This quotation will be moved to the trash. You can restore it later from the Trash folder.',
-            okText: 'Move to Trash',
+            title: 'Delete this Quotation?',
+            content: 'This quotation will be permanently deleted.',
+            okText: 'Delete this Quotation',
             okType: 'danger',
             cancelText: 'Cancel',
             onOk: async () => {
-                setIsTrashing(true);
+                setIsDeleting(true);
                 try {
                     const res = await fetch(`${API_BASE}/quotation/mark-trash/${quotationId}`, {
                         method: 'PATCH',
@@ -29,7 +34,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
 
                     const result = await res.json();
                     if (result.success) {
-                        message.success('Quotation moved to trash');
+                        message.success('Quotation Deleted Successfully');
                         onCancel(); // Close the modal
                         fetchQuotations()
                         // Optional: If you have a refresh function in parent, call it here
@@ -37,9 +42,9 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                         throw new Error(result.error);
                     }
                 } catch (err) {
-                    message.error(err.message || 'Failed to move to trash');
+                    message.error(err.message || 'Failed to delete quotation');
                 } finally {
-                    setIsTrashing(false);
+                    setIsDeleting(false);
                 }
             },
         });
@@ -97,6 +102,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                     ...data,
                     tracking: { ...data.tracking, [field]: value }
                 });
+                
                 message.success(`${field.replace(/_/g, ' ')} updated successfully`);
             } else {
                 throw new Error(result.error);
@@ -104,6 +110,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
         } catch (err) {
             message.error(err.message || 'Failed to update tracking');
         } finally {
+            fetchQuotations()
             setUpdatingTracking(false);
         }
     };
@@ -142,18 +149,30 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
             //     )
             // ]}
             footer={[
-                // Add Move to Trash at the start of the footer
+                // Add Move to Delete at the start of the footer
                 data && (
                     <Button
-                        key="trash"
+                        key="delete"
                         danger
                         type="text"
-                        loading={isTrashing}
-                        icon={<ReloadOutlined style={{ transform: 'rotate(45deg)' }} />} // Using a rotated icon as a proxy for trash if DeleteOutlined isn't imported
-                        onClick={handleMoveToTrash}
+                        loading={isDeleting}
+                        icon={<FiTrash2 style={{ transform: 'rotate(45deg)' }} />} // Using a rotated icon as a proxy for delete if DeleteOutlined isn't imported
+                        onClick={handleMoveToDelete}
                         style={{ float: 'left' }} // Align to the left side
                     >
-                        Move to Trash
+                        Delete
+                    </Button>
+                ),
+                data && (
+                    <Button
+                        key="edit"
+                        type="default"
+                        onClick={() => {
+                            onCancel();
+                            navigate(`/edit-quotation/${quotationId}`);
+                        }}
+                    >
+                        Edit
                     </Button>
                 ),
                 <Button key="close" icon={<CloseOutlined />} onClick={onCancel}>
@@ -223,7 +242,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                             <Descriptions.Item label="Client Name">{data.customer_name}</Descriptions.Item>
                             <Descriptions.Item label="Contact">{data.customer_phone || 'N/A'}</Descriptions.Item>
                             <Descriptions.Item label="Email">{data.customer_email}</Descriptions.Item>
-                            <Descriptions.Item label="Travel Date">{dayjs(data.travel_date).format('DD-MM-YYYY HH:mm')}</Descriptions.Item>
+                            <Descriptions.Item label="Travel Date">{dayjs.utc(data.travel_date).format('DD-MM-YYYY')}</Descriptions.Item>
                             <Descriptions.Item label="Passengers" span={2}>
                                 {data.passengers_names} <br />
                                 <Text type="secondary" style={{ fontSize: '11px' }}>
@@ -241,9 +260,9 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                             rowKey="_id"
                             columns={[
                                 { title: 'Airline', dataIndex: 'airline', key: 'airline' },
-                                { title: 'Date', dataIndex: 'departureDateTime', render: d => dayjs(d).format('DD-MM-YYYY') },
-                                { title: 'Departure', render: (_, r) => `${r.from} (${dayjs(r.departureDateTime).format('HH:mm')})` },
-                                { title: 'Arrival', render: (_, r) => `${r.to} (${dayjs(r.arrivalDateTime).format('HH:mm')})` },
+                                { title: 'Date', dataIndex: 'departureDateTime', render: d => dayjs.utc(d).format('DD-MM-YYYY') },
+                                { title: 'Departure', render: (_, r) => `${r.from} (${dayjs.utc(r.departureDateTime).format('HH:mm')})` },
+                                { title: 'Arrival', render: (_, r) => `${r.to} (${dayjs.utc(r.arrivalDateTime).format('HH:mm')})` },
                             ]}
                         />
 
@@ -256,10 +275,26 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                             rowKey="_id"
                             columns={[
                                 { title: 'Hotel', dataIndex: 'hotel_id', render: h => h?.name || 'Manual Entry' },
-                                { title: 'Room Type', dataIndex: 'room_type' },
-                                { title: 'Meal Plan', dataIndex: 'meal_plan' },
+                                { 
+                                    title: 'Rooms Configuration', 
+                                    render: (_, record) => {
+                                        if (record.rooms && record.rooms.length > 0) {
+                                            return (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    {record.rooms.map((r, rIdx) => (
+                                                        <span key={r._id || rIdx}>
+                                                            {r.noOfRooms}x {r.room_type} ({r.meal_plan})
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            );
+                                        }
+                                        return `${record.noOfRooms || 1}x ${record.room_type || 'N/A'} (${record.meal_plan || 'N/A'})`;
+                                    }
+                                },
                                 { title: 'Nights', dataIndex: 'nights', align: 'center' },
-                                { title: 'Check-in', dataIndex: 'check_in', render: d => dayjs(d).format('DD-MM-YYYY') },
+                                { title: 'Check-in', dataIndex: 'check_in', render: d => dayjs.utc(d).format('DD-MM-YYYY') },
+                                { title: 'Check-out', dataIndex: 'check_out', render: d => dayjs.utc(d).format('DD-MM-YYYY') },
                             ]}
                         />
 

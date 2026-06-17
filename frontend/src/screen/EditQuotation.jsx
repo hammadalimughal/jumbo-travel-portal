@@ -1,35 +1,149 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert } from 'antd';
+import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert, Spin } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 dayjs.extend(utc);
 import { useDataContext } from '../context/DataContext';
 import { API_BASE } from '../config/data';
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuthContext } from '../context/AuthContext';
 const { Title } = Typography;
 
-const NewQuotation = ({ isDark }) => {
-  const { user } = useAuthContext()
+const EditQuotation = ({ isDark }) => {
+  const { user } = useAuthContext();
   const navigate = useNavigate();
+  const { id } = useParams();
+
   const [price, setPrice] = useState({
     adults: 0,
     infant: 0,
     children: 0
-  })
+  });
   const [passengerType, setPassengerType] = useState({
     adults: 0,
-    infant: 0, // Keep this consistent throughout
+    infant: 0,
     children: 0
   });
-  const [rawCodes, setRawCodes] = useState('')
-  const [processing, setProcessing] = useState(false)
+  const [rawCodes, setRawCodes] = useState('');
+  const [processing, setProcessing] = useState(false);
   const [form] = Form.useForm();
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(false);
-  const { hotels } = useDataContext()
+  const [quotationLoading, setQuotationLoading] = useState(true);
+  const { hotels } = useDataContext();
   const [formHotels, setFormHotels] = useState([]);
+
+  // Fetch quotation details on mount
+  useEffect(() => {
+    const fetchQuotationDetails = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/quotation/detail/${id}`);
+        const result = await response.json();
+        if (result.success && result.data) {
+          const qData = result.data;
+
+          // Prefill Form fields
+          form.setFieldsValue({
+            customer_name: qData.customer_name,
+            customer_email: qData.customer_email,
+            customer_phone: qData.customer_phone,
+            travel_date: qData.travel_date ? dayjs.utc(qData.travel_date) : null,
+            passengers_names: qData.passengers_names,
+            adults: qData.passenger_counts?.adults || 0,
+            children: qData.passenger_counts?.children || 0,
+            infants: qData.passenger_counts?.infants || 0,
+            priceAdult: qData.pricing?.priceAdult || 0,
+            priceChild: qData.pricing?.priceChild || 0,
+            priceInfant: qData.pricing?.priceInfant || 0,
+            totalPrice: qData.pricing?.totalPrice || 0,
+            special_conditions: qData.special_conditions,
+            notes: qData.notes,
+            cancellation_policy: qData.cancellation_policy
+          });
+
+          // Prefill state variables for pricing auto-calculations
+          setPrice({
+            adults: qData.pricing?.priceAdult || 0,
+            children: qData.pricing?.priceChild || 0,
+            infant: qData.pricing?.priceInfant || 0
+          });
+
+          setPassengerType({
+            adults: qData.passenger_counts?.adults || 0,
+            children: qData.passenger_counts?.children || 0,
+            infant: qData.passenger_counts?.infants || 0
+          });
+
+          // Prefill flights state
+          if (qData.flights && qData.flights.length > 0) {
+            const loadedFlights = qData.flights.map((f, index) => ({
+              ...f,
+              id: f._id || (Date.now() + index),
+              from: f.from || '',
+              to: f.to || '',
+              date: f.date ? dayjs.utc(f.date) : null,
+              departureDateTime: f.departureDateTime ? dayjs.utc(f.departureDateTime) : null,
+              arrivalDateTime: f.arrivalDateTime ? dayjs.utc(f.arrivalDateTime) : null,
+              airline: f.airline || ''
+            }));
+            setFlights(loadedFlights);
+          }
+
+          // Prefill hotels state
+          if (qData.hotels && qData.hotels.length > 0) {
+            const loadedHotels = qData.hotels.map((h, index) => {
+              let rooms = h.rooms || [];
+              if (rooms.length === 0 && (h.room_type || h.noOfRooms || h.meal_plan)) {
+                rooms = [
+                  {
+                    id: Date.now() + index + 999,
+                    room_type: h.room_type,
+                    noOfRooms: h.noOfRooms || 1,
+                    meal_plan: h.meal_plan
+                  }
+                ];
+              }
+              if (rooms.length === 0) {
+                rooms = [
+                  {
+                    id: Date.now() + index + 999,
+                    room_type: null,
+                    noOfRooms: 1,
+                    meal_plan: null
+                  }
+                ];
+              }
+
+              return {
+                id: h._id || (Date.now() + index),
+                hotel_id: h.hotel_id?._id || h.hotel_id,
+                check_in: h.check_in ? dayjs.utc(h.check_in) : null,
+                check_out: h.check_out ? dayjs.utc(h.check_out) : null,
+                nights: h.nights || 0,
+                rooms: rooms.map((r, rIdx) => ({
+                  ...r,
+                  id: r.id || r._id || (Date.now() + index + rIdx + 1000)
+                }))
+              };
+            });
+            setFormHotels(loadedHotels);
+          }
+        } else {
+          message.error(result.error || 'Failed to fetch quotation details');
+        }
+      } catch (error) {
+        console.error(error);
+        message.error('Error fetching quotation details: ' + error.message);
+      } finally {
+        setQuotationLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchQuotationDetails();
+    }
+  }, [id, form]);
 
   const addHotel = () => {
     const newHotel = {
@@ -132,7 +246,7 @@ const NewQuotation = ({ isDark }) => {
       (price.children * passengerType.children) +
       (price.infant * passengerType.infant);
 
-    // This physically updates the value shown in the "totalPrice" InputNumber
+    // Physical update of the value shown in the "totalPrice" InputNumber
     form.setFieldsValue({ totalPrice: total });
   }, [price, passengerType, form]);
 
@@ -143,8 +257,7 @@ const NewQuotation = ({ isDark }) => {
     }
     setProcessing(true);
     try {
-      setFlights([])
-      form.resetFields()
+      setFlights([]);
       const response = await fetch(`${API_BASE}/quotation/process-raw-codes`, {
         method: 'POST',
         headers: {
@@ -155,7 +268,6 @@ const NewQuotation = ({ isDark }) => {
       const result = await response.json();
 
       if (result.success && result.data) {
-        console.log(JSON.stringify(result.data))
         const { passengers, flights } = result.data;
 
         // Format passenger names
@@ -165,12 +277,8 @@ const NewQuotation = ({ isDark }) => {
 
         // Set passenger names to form
         form.setFieldValue('passengers_names', passengerNames);
-        // setPassengerType({
-        //   adults: passengers.filter(item => item.type.category == 'adult').length,
-        //   infant: passengers.filter(item => item.type.category == 'children').length,
-        //   children: passengers.filter(item => item.type.category == 'infant').length
-        // })
-        // Set number of adults (rough estimate - count passengers)
+
+        // Count passengers
         const adultCount = passengers.filter(item => item.type.category === 'adult').length;
         const childCount = passengers.filter(item => item.type.category === 'children').length;
         const infantCount = passengers.filter(item => item.type.category === 'infant').length;
@@ -186,7 +294,7 @@ const NewQuotation = ({ isDark }) => {
         setPassengerType({
           adults: adultCount,
           children: childCount,
-          infant: infantCount // Match your state key name
+          infant: infantCount
         });
 
         // Parse and set flights
@@ -196,7 +304,6 @@ const NewQuotation = ({ isDark }) => {
             id: Date.now() + index,
             from: flight.origin?.city || flight.origin?.iata || '',
             to: flight.destination?.city || flight.destination?.iata || '',
-            // Use .utc(true) to parse the string and keep the time exactly as is
             date: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
             departureDateTime: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
             arrivalDateTime: flight.arrivalISO ? dayjs.utc(flight.arrivalISO) : null,
@@ -205,7 +312,7 @@ const NewQuotation = ({ isDark }) => {
           setFlights(parsedFlights);
         }
 
-        message.success('Data parsed and auto-filled successfully!');
+        message.success('Data parsed and flight segments updated successfully!');
       } else {
         message.error(result.error || 'Failed to parse itinerary');
       }
@@ -215,10 +322,9 @@ const NewQuotation = ({ isDark }) => {
     } finally {
       setProcessing(false);
     }
-  }
+  };
 
   const hotelOptions = hotels.map((item) => ({
-    // Use the actual database ID instead of a hardcoded 1
     value: item._id,
     label: `${item.name} ${item.hotelType ? ` - ${item.hotelType} Stars` : ''}`,
     location: `${item.city}, ${item.country}`,
@@ -252,6 +358,7 @@ const NewQuotation = ({ isDark }) => {
         message.error("Please fill in all hotel details (Room types, Meal plans, Dates, Nights).");
         return;
       }
+
       // Format dates
       const formData = {
         ...values,
@@ -282,36 +389,33 @@ const NewQuotation = ({ isDark }) => {
         })
       };
 
-      // Here you would send formData to your backend
-      console.log('Form Data:', formData);
-      const response = await fetch(`${API_BASE}/quotation/generate-invoice`, {
-        method: 'POST',
+      console.log('Update Form Data:', formData);
+      const response = await fetch(`${API_BASE}/quotation/update/${id}`, {
+        method: 'PUT',
         headers: {
           "Content-Type": 'application/json'
         },
         body: JSON.stringify(formData)
       });
       const result = await response.json();
-      console.log(result)
       if (result.success) {
-        message.success('Quotation saved successfully!');
-        navigate('/quotations')
-        return
+        message.success('Quotation updated successfully!');
+        navigate('/quotations');
+        return;
       }
       message.error(result.error);
     } catch (error) {
-      message.error('Failed to save quotation');
+      message.error('Failed to update quotation');
     } finally {
       setLoading(false);
     }
-  };// Add these helper functions at the top of your component
+  };
+
   const disabledCheckIn = (current) => {
-    // Can't select days before today
     return current && current < dayjs().startOf('day');
   };
 
   const disabledCheckOut = (checkInDate) => (current) => {
-    // Allow the same day by only disabling dates strictly BEFORE the check-in date
     return current && current < dayjs(checkInDate).startOf('day');
   };
 
@@ -320,32 +424,29 @@ const NewQuotation = ({ isDark }) => {
     marginBottom: 24,
   };
 
+  if (quotationLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '100px 0' }}>
+        <Spin size="large" tip="Loading quotation details..." />
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-header">
-        <Title level={3} style={{ marginBottom: 0 }}>New Quotation</Title>
+        <Title level={3} style={{ marginBottom: 0 }}>Edit Quotation</Title>
       </div>
 
       {/* AI Convert Section */}
       <Card style={cardStyle} size="small">
         <div style={{ marginBottom: 16 }}>
-          {/* <div style={{ 
-                padding: '12px 16px', 
-                backgroundColor: '#e6f4ff', 
-                border: '1px solid #91caff',
-                borderRadius: '4px',
-                marginBottom: 16,
-                color: '#0050b3'
-              }}>
-                Paste Amadeus / Airline Itinerary Code then click AI Convert to auto-fill.
-              </div> */}
-          <Alert title="Paste Amadeus / Airline Itinerary Code then click convert to auto-fill" style={{ marginBottom: 8 }} type="info" />
+          <Alert message="Paste Amadeus / Airline Itinerary Code then click convert to update flight details." style={{ marginBottom: 8 }} type="info" />
           <Form.Item name="raw_itinerary" style={{ marginBottom: 8 }}>
             <Input.TextArea
               rows={6}
               placeholder="Paste itinerary..."
               id="raw_itinerary"
-              // ✅ Use e.target.value to get the string
               onChange={(e) => setRawCodes(e.target.value)}
             />
           </Form.Item>
@@ -354,6 +455,7 @@ const NewQuotation = ({ isDark }) => {
           </Button>
         </div>
       </Card>
+      
       <Form
         form={form}
         layout="vertical"
@@ -403,8 +505,7 @@ const NewQuotation = ({ isDark }) => {
                 name="travel_date"
                 rules={[{ required: true, message: 'Please select travel date' }]}
               >
-                <DatePicker
-                  format="DD-MM-YYYY" style={{ width: '100%' }} />
+                <DatePicker format="DD-MM-YYYY" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -720,7 +821,6 @@ const NewQuotation = ({ isDark }) => {
         {/* Pricing */}
         <Card title="Pricing" size="small" style={{ marginBottom: 24 }}>
           <Row gutter={[16, 16]}>
-            {/* Adult Price */}
             <Col xs={24} sm={8}>
               <Form.Item
                 label="Adult Price (£)"
@@ -736,7 +836,6 @@ const NewQuotation = ({ isDark }) => {
               </Form.Item>
             </Col>
 
-            {/* Child Price - FIXED: Moved onChange to InputNumber */}
             <Col xs={24} sm={8}>
               <Form.Item
                 label="Child Price (£)"
@@ -752,7 +851,6 @@ const NewQuotation = ({ isDark }) => {
               </Form.Item>
             </Col>
 
-            {/* Infant Price */}
             <Col xs={24} sm={8}>
               <Form.Item
                 label="Infant Price (£)"
@@ -768,7 +866,6 @@ const NewQuotation = ({ isDark }) => {
               </Form.Item>
             </Col>
 
-            {/* Total Price - READ ONLY suggested */}
             <Col span={24}>
               <Form.Item
                 label="Total Package Price (£)"
@@ -798,7 +895,6 @@ const NewQuotation = ({ isDark }) => {
               <Form.Item
                 label="Booking Notes"
                 name="notes"
-                initialValue={``}
               >
                 <Input.TextArea rows={3} placeholder="Enter booking notes" />
               </Form.Item>
@@ -807,22 +903,8 @@ const NewQuotation = ({ isDark }) => {
               <Form.Item
                 label="Terms & Condition"
                 name="cancellation_policy"
-                initialValue={`Flights Booking Conditions-
-
-· Please carefully check the passenger name(s) and flight details provided above, Passenger name(s) must exactly match the passport. We are not responsible for any issues arising from incorrect details. name change not allowed at all .
-
-· once a deposit or full payment is made, tickets will be issued strictly based on the details provided at the time of booking. Ticket is non-refundable.  Date changes- if permitted, are subject to Airline fare rules and policies,   Applicable date-change penalties, Any fare difference, admin fee which must be paid by the passenger. Please note that some airlines do not allow date changes at all. Jumbo Travel u.k.Ltd reserves the right to cancel reservations, e-tickets &related services without any notification to the customer unless full payment for these are received.
-
- WE ADVISE YOU TO TAKE TRAVEL INSURANCE TO COVER THESE POSSIBILITIES.
-
-· The deposit is strictly non-refundable and is used to cover airline cancellation and administrative charges. By making a deposit or full payment, you confirm that you have read, understood, and agreed to all the above terms and conditions.
-
-Hotel Booking conditions-
-
-Once a reservation is confirmed, the booking is strictly non-amendable and non-refundable. If the hotel permits modifications, guests must cancel the existing reservation and make a new booking at the current available rate. Any price difference will be the guest’s responsibility. Availability and rates at the time of rebooking are not guaranteed. Room layout, size, view, floor level, bedding configuration (e.g., twin, double, king), smoking/non-smoking preference, and special requests are subject to hotel availability. We do not guarantee specific room features. Guests must contact the hotel directly to request or confirm these preferences. We act solely as a booking agent. The hotel is fully responsible for providing accommodation services, room standards, amenities, and overall guest experience. All bookings are subject to the individual hotel’s policies, including but not limited to check-in/check-out times, security deposits, resort fees, city taxes, and incidental charges. Guests are responsible for complying with the hotel’s rules and regulations. Failure to check in on the scheduled arrival date (no-show) will result in 100% cancellation charges. Early departure or late arrival does not qualify for any refund or adjustment unless approved directly by the hotel. We are not responsible for cancellations, delays, or changes caused by events beyond our control, including natural disasters, government actions, travel restrictions, strikes, or other unforeseen circumstances. Guests are responsible for ensuring they have valid travel documents, visas, and meet entry requirements for their destination. Special requests such as extra beds, baby cots, airport transfers, or accessibility needs are not guaranteed and may incur additional charges payable directly to the hotel. We are not liable for any loss, damage, injury, theft, or inconvenience experienced during the stay. Any issues must be resolved directly with the hotel management.`}
               >
-                <Input.TextArea
-                  rows={3} placeholder="Enter cancellation policy" />
+                <Input.TextArea rows={3} placeholder="Enter cancellation policy" />
               </Form.Item>
             </Col>
           </Row>
@@ -832,10 +914,10 @@ Once a reservation is confirmed, the booking is strictly non-amendable and non-r
         <Form.Item>
           <Space>
             <Button type="primary" htmlType="submit" size="medium" loading={loading}>
-              Generate Quotation
+              Save Quotation Changes
             </Button>
-            <Button size="medium">
-              Reset Form
+            <Button size="medium" onClick={() => navigate('/quotations')}>
+              Cancel
             </Button>
           </Space>
         </Form.Item>
@@ -844,4 +926,4 @@ Once a reservation is confirmed, the booking is strictly non-amendable and non-r
   );
 };
 
-export default NewQuotation;
+export default EditQuotation;

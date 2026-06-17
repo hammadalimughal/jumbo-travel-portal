@@ -94,11 +94,6 @@ const ResetPassword = ({ isDark }) => {
                 Back to Login
               </Button>
             </Link>
-            <Link to="/register" style={{ textDecoration: 'none' }}>
-              <Button type="text" block>
-                Create new account
-              </Button>
-            </Link>
           </Space>
         </Form>
       </Card>

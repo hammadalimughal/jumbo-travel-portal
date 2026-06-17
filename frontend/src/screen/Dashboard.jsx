@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Statistic, Segmented, Table, Typography, Space, Checkbox } from 'antd';
-import { DollarCircleOutlined, FileTextOutlined, RocketOutlined } from '@ant-design/icons';
+import { DollarCircleOutlined, EuroOutlined, FileTextOutlined, RocketOutlined } from '@ant-design/icons';
 import { API_BASE } from '../config/data'
 const { Title } = Typography;
 
@@ -35,7 +35,7 @@ const AntdDashboard = () => {
             title: 'Total Amount',
             dataIndex: 'amount',
             key: 'amount',
-            render: (val) => `$${val.toLocaleString()}`
+            render: (val) => `£${val.toLocaleString()}`
         }
     ];
 
@@ -60,7 +60,8 @@ const AntdDashboard = () => {
                                 title="Total Amount"
                                 value={totals.amount}
                                 precision={2}
-                                prefix={<DollarCircleOutlined style={{ color: '#52c41a' }} />}
+                                // prefix={<DollarCircleOutlined style={{ color: '#52c41a' }} />}
+                                prefix={<EuroOutlined style={{ color: '#52c41a' }} />}
                             />
                         </Card>
                     </Col>

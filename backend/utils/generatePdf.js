@@ -1,19 +1,20 @@
-const fs = require('fs');
+// const fs = require('fs');
+// const pdf = require('html-pdf');
+// const path = require('path')
+const puppeteer = require("puppeteer");
+const path = require("path");
+const fs = require("fs");
 const pdf = require('html-pdf');
-const path = require('path')
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+dayjs.extend(utc);
 const createPdfHtml = (data) => {
     // console.log(JSON.stringify(data))
     const rawDate = data.travel_date;
-    const [year, month, day] = rawDate.split('-');
-    const formattedDate = `${day}-${month}-${year}`;
-    const refactorDate = (dateStr) => {
-        if (!dateStr) return "N/A";
-
-        // Split by hyphen and destructure
-        const [year, month, day] = dateStr.split('-');
-
-        // Return in the desired order
-        return `${day}-${month}-${year}`;
+    const formattedDate = rawDate ? dayjs.utc(rawDate).format('DD-MM-YYYY') : '';
+    const refactorDate = (dateVal) => {
+        if (!dateVal) return "N/A";
+        return dayjs.utc(dateVal).format('DD-MM-YYYY');
     };
     return `<!DOCTYPE html>
 <html>
@@ -69,8 +70,8 @@ const createPdfHtml = (data) => {
         <div class="flex" style="margin-bottom: 20px;">
             <div class="col" style="font-size: 12px; line-height: 1.6;">
                 <p><strong>Customer Name:</strong> ${data.customer_name}</p>
-                <p><strong>Mail:</strong> ${data.customer_email}</p>
-                <p><strong>Contact No:</strong> ${data.customer_phone}</p>
+                ${data.customer_email ? `<p><strong>Mail:</strong> ${data.customer_email}</p>` : ''}
+                ${data.customer_phone ? `<p><strong>Contact No:</strong> ${data.customer_phone}</p>` : ''}
                 <p>${data.adults} Adult(s), ${data.children} Child(ren), ${data.infants} Infant(s)</p>
             </div>
             <div class="col text-right" style="font-size: 12px; line-height: 1.6;">
@@ -78,7 +79,7 @@ const createPdfHtml = (data) => {
                 <p><strong>Date:</strong> ${refactorDate(data.travel_date)}</p>
                 <p>Total Package Price: <span class="text-blue">£${data.totalPrice.toFixed(2)}</span></p>
                 <p>Email: <span>sales@jumbotraveluk.com</span></p>
-                <p>Email: <span>02073878264</span></p>
+                <p>Phone: <span>02073878264</span></p>
             </div>
         </div>
 
@@ -96,17 +97,20 @@ const createPdfHtml = (data) => {
                 </tr>
             </thead>
             <tbody>
-            ${data.flights.map((item) => (
-        `<tr>
-                    <td>${item.airline}</td>
-                    <td>${item.flightNumber}</td>
-                    <td>${refactorDate(item.departureISO.split('T')[0])}</td>
-                    <td>${item.from}</td>
-                    <td>${item.to}</td>
-                    <td>${item.departureISO.split('T')[1].split(':').slice(0, 2).join(':')}</td>
-                    <td>${item.arrivalISO.split('T')[1].split(':').slice(0, 2).join(':')}</td>
-                </tr>`
-    )).join('')}
+            ${data.flights.map((item) => {
+                const depTime = item.departureDateTime || item.departureISO ? dayjs.utc(item.departureDateTime || item.departureISO).format('HH:mm') : 'N/A';
+                const arrTime = item.arrivalDateTime || item.arrivalISO ? dayjs.utc(item.arrivalDateTime || item.arrivalISO).format('HH:mm') : 'N/A';
+                const flDate = item.departureDateTime || item.departureISO ? dayjs.utc(item.departureDateTime || item.departureISO).format('DD-MM-YYYY') : 'N/A';
+                return `<tr>
+                    <td>${item.airline || ''}</td>
+                    <td>${item.flightNumber || ''}</td>
+                    <td>${flDate}</td>
+                    <td>${item.from || ''}</td>
+                    <td>${item.to || ''}</td>
+                    <td>${depTime}</td>
+                    <td>${arrTime}</td>
+                </tr>`;
+            }).join('')}
             </tbody>
         </table>
 
@@ -123,15 +127,26 @@ const createPdfHtml = (data) => {
                     <th>Meal Plan</th>
                     <th>Total Nights</th>
                 </tr>
-                ${data.hotels.map((item) => `<tr>
-                    <td>${item.name}</td>
-                    <td>${item.noOfRooms}</td>
-                    <td>${item.room_type}</td>
-                    <td>${refactorDate(item.check_in.split('T')[0])}</td>
-                    <td>${refactorDate(item.check_out.split('T')[0])}</td>
-                    <td>${item.meal_plan}</td>
-                    <td>${item.nights}</td>
-                </tr>`).join('')}
+                ${data.hotels.map((item) => {
+                    const noOfRoomsCol = item.rooms && item.rooms.length > 0
+                        ? item.rooms.map(r => r.noOfRooms).join('<br>')
+                        : item.noOfRooms || '';
+                    const roomTypeCol = item.rooms && item.rooms.length > 0
+                        ? item.rooms.map(r => r.room_type).join('<br>')
+                        : item.room_type || '';
+                    const mealPlanCol = item.rooms && item.rooms.length > 0
+                        ? item.rooms.map(r => r.meal_plan).join('<br>')
+                        : item.meal_plan || '';
+                    return `<tr>
+                        <td>${item.name || ''}</td>
+                        <td>${noOfRoomsCol}</td>
+                        <td>${roomTypeCol}</td>
+                        <td>${refactorDate(item.check_in)}</td>
+                        <td>${refactorDate(item.check_out)}</td>
+                        <td>${mealPlanCol}</td>
+                        <td>${item.nights}</td>
+                    </tr>`;
+                }).join('')}
             </tbody>
         </table>
 
@@ -177,7 +192,7 @@ const createPdfHtml = (data) => {
                 <p>${item}</p>
             `).join('')}
         </div>` : ''}
-        ${data.cancellation_policy ? `<div class="header-section" style="margin-top: 30px">Cancellation Policy</div>
+        ${data.cancellation_policy ? `<div class="header-section" style="margin-top: 30px">Terms & Condition</div>
         <div class="disclaimer-section">
             ${data.cancellation_policy.split('\n').map((item) => `
                 <p>${item}</p>
@@ -189,7 +204,91 @@ const createPdfHtml = (data) => {
 }
 
 
-const generateHtmlToPdf = (htmlContent, fileName) => {
+// const generateHtmlToPdf = (htmlContent, fileName) => {
+//     return new Promise((resolve, reject) => {
+//         // Define the path where the PDF will be stored
+//         const filePath = path.join(__dirname, '../public/pdfs', `${fileName}.pdf`);
+//         const publicUrl = `/pdfs/${fileName}.pdf`;
+
+//         const options = {
+//             format: 'A4',
+//             orientation: 'portrait',
+//             border: '10mm',
+//             zoomFactor: "1",
+//             type: "pdf",
+//             quality: "100",
+//             phantomPath: "/usr/bin/phantomjs"
+//         };
+
+//         pdf.create(htmlContent, options).toFile(filePath, (err, res) => {
+//             if (err) {
+//                 return reject(err);
+//             }
+//             // res.filename contains the absolute path on the server
+//             resolve({
+//                 filePath: res.filename,
+//                 url: publicUrl
+//             });
+//         });
+//     });
+// };
+
+const generateHtmlToPdf = async (htmlContent, fileName) => {
+    try {
+        const pdfDir = path.join(__dirname, "../public/pdfs");
+
+        // Create folder if not exists
+        if (!fs.existsSync(pdfDir)) {
+            fs.mkdirSync(pdfDir, { recursive: true });
+        }
+
+        const filePath = path.join(pdfDir, `${fileName}.pdf`);
+        const publicUrl = `/pdfs/${fileName}.pdf`;
+        const chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+        const chromePathX86 = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+        const browser = await puppeteer.launch({
+            executablePath: "/snap/bin/chromium",   // 👈 use system chromium
+            // executablePath: fs.existsSync(chromePath) ? chromePath : chromePathX86, // 👈 use system chrome
+            headless: "new",
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
+        });
+
+        const page = await browser.newPage();
+
+        await page.setContent(htmlContent, {
+            waitUntil: "networkidle0"
+        });
+
+        await page.pdf({
+            path: filePath,
+            format: "A4",
+            printBackground: true,
+            margin: {
+                top: "10mm",
+                right: "10mm",
+                bottom: "10mm",
+                left: "10mm"
+            }
+        });
+
+        await browser.close();
+
+        return {
+            filePath: filePath,
+            url: publicUrl
+        };
+
+    } catch (error) {
+        throw error;
+    }
+};
+
+const generateHtmlToPdfWindows = (htmlContent, fileName) => {
     return new Promise((resolve, reject) => {
         // Define the path where the PDF will be stored
         const filePath = path.join(__dirname, '../public/pdfs', `${fileName}.pdf`);
@@ -217,4 +316,4 @@ const generateHtmlToPdf = (htmlContent, fileName) => {
     });
 };
 
-module.exports = { generateHtmlToPdf, createPdfHtml }
+module.exports = { generateHtmlToPdf, createPdfHtml, generateHtmlToPdfWindows }

@@ -4,12 +4,12 @@ const nodemailer = require('nodemailer');
 const sendMail = async (to, subject, html) => {
     return new Promise(async (resolve, reject) => {
         const transporter = await nodemailer.createTransport({
-            host: 'microbiotech-online.com',
+            host: 'betatestinglink.com',
             port: 465,
             secure: true, // Use true if you're using port 465 (SSL)
             auth: {
-                user: 'noreply@microbiotech-online.com',
-                pass: '7~;!=t$V}dK?'
+                user: 'noreply@betatestinglink.com',
+                pass: 'zU7VMdddbkPD9X7yL4Dt'
             },
             tls: {
                 // Do not fail on invalid certs
@@ -19,7 +19,7 @@ const sendMail = async (to, subject, html) => {
 
         // Construct the email message
         const mailOptions = {
-            from: 'noreply@microbiotech-online.com',
+            from: 'noreply@betatestinglink.com',
             to: to,
             subject: subject,
             html: html

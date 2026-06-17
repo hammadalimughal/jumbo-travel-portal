@@ -3,6 +3,8 @@ import { Button, Flex, Table, Tag, Space, Popconfirm, message } from 'antd';
 import { FiEye, FiTrash } from 'react-icons/fi';
 import { useDataContext } from '../context/DataContext';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+dayjs.extend(utc);
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useEffect } from 'react';
@@ -77,7 +79,7 @@ const Quotations = () => {
             title: 'Travel Date',
             dataIndex: 'travel_date',
             key: 'travel_date',
-            render: (date) => dayjs(date).format('DD-MM-YYYY'),
+            render: (date) => dayjs.utc(date).format('DD-MM-YYYY'),
         },
         {
             title: 'Total Price',
@@ -133,6 +135,11 @@ const Quotations = () => {
                     >
                         Detail
                     </Button>
+                    <Button type="link"
+                        onClick={() => navigate(`/edit-quotation/${record._id}`)}
+                    >
+                        Edit
+                    </Button>
                     {/* <Popconfirm
                         title="Delete Quotation"
                         onConfirm={() => handleDelete(record._id)}
@@ -153,9 +160,14 @@ const Quotations = () => {
             <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
                 <h2 style={{ margin: 0 }}>Quotations</h2>
                 {/* Button to navigate to your existing New Quotation form */}
-                <Button type="primary" onClick={() => navigate('/new-quotation')}>
-                    New Quotation
-                </Button>
+                <div>
+                    <Button type="primary" onClick={() => navigate('/new-quotation')}>
+                        New Quotation
+                    </Button>
+                    <Button style={{ marginLeft: 8 }} type="primary" onClick={() => navigate('/new-group-quotation')}>
+                        New Group Quotation
+                    </Button>
+                </div>
             </Flex>
 
             <Table
