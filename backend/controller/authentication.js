@@ -2,7 +2,15 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('../env.json');
+let JWT_SECRET = process.env.JWT_SECRET;
+try {
+    const env = require('../env.json');
+    JWT_SECRET = JWT_SECRET || env.JWT_SECRET;
+} catch (e) {
+    if (!JWT_SECRET) {
+        JWT_SECRET = "fallback_jwt_secret_jumbo"; // Fallback secret to prevent crash if not configured
+    }
+}
 const User = require('../models/User');
 const sendMail = require('../utils/sendMail');
 

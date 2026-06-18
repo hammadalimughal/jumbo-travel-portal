@@ -1,17 +1,32 @@
-const mongoose = require('mongoose')
-const { mongodbUri2, mongodbUri } = require('./env.json')
+const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
 
-const connectMongoDB = async () => {
+let mongodbUri = process.env.MONGODB_URI;
+let mongodbUri2 = process.env.MONGODB_URI_PROD || process.env.MONGODB_URI;
+
+const envPath = path.join(__dirname, './env.json');
+if (fs.existsSync(envPath)) {
     try {
-        if (process.env.NODE_ENV !== 'production') {
-            await mongoose.connect(mongodbUri)
-        } else {
-            await mongoose.connect(mongodbUri2)
-        }
-        console.log(`Database Connected`)
-    } catch (error) {
-        console.log(error)
+        const env = require('./env.json');
+        mongodbUri = mongodbUri || env.mongodbUri;
+        mongodbUri2 = mongodbUri2 || env.mongodbUri2;
+    } catch (e) {
+        console.error("Failed to parse env.json:", e.message);
     }
 }
 
-connectMongoDB()
+const connectMongoDB = async () => {
+    try {
+        const connUri = process.env.VERCEL || process.env.NODE_ENV === 'production' ? mongodbUri2 : mongodbUri;
+        if (!connUri) {
+            throw new Error("No MongoDB connection URI provided (checked env.json and process.env)");
+        }
+        await mongoose.connect(connUri);
+        console.log(`Database Connected`);
+    } catch (error) {
+        console.error("MongoDB connection error:", error.message);
+    }
+};
+
+connectMongoDB();

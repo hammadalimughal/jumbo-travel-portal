@@ -46,10 +46,10 @@ app.use('/api', require('./controller/apiHandler'));
 
 
 app.use((req, res) => {
-  res.sendFile(path.resolve('./public/index.html'))
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
 })
 
-// module.exports = app;
+module.exports = app;
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
@@ -62,10 +62,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => console.log('User disconnected'));
 });
 
-// Only listen if not running on Vercel (optional for local dev)
-if (process.env.NODE_ENV !== 'production') {
-  // app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Only listen if not running on Vercel
+if (!process.env.VERCEL) {
   server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-} else {
-  server.listen();
 }
