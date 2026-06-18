@@ -177,13 +177,17 @@ router.post('/generate-invoice', async (req, res) => {
 
         try {
             if (data.customer_email) {
+                const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+                const host = req.get('host');
+                const invoiceLink = `${protocol}://${host}${url?.url || ''}`;
+
                 const emailSubject = `Quotation ${quotation.quotation_no} - Jumbo Travel`;
                 const emailBody = `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6;">
                         <h2>Quotation Generated</h2>
                         <p>Dear ${data.customer_name},</p>
                         <p>Thank you for choosing Jumbo Travel. We are pleased to provide you with your quotation reference: <strong>${quotation.quotation_no}</strong>.</p>
-                        <p>You can view your quotation PDF invoice at: <a href="http://localhost:6947${url?.url || ''}" target="_blank">View Invoice</a></p>
+                        <p>You can view your quotation PDF invoice at: <a href="${invoiceLink}" target="_blank">View Invoice</a></p>
                         <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
                         <p style="font-size: 12px; color: #999;">Jumbo Travel Team</p>
                     </div>
