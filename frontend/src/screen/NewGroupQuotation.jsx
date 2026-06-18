@@ -1,182 +1,208 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert } from 'antd';
+import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert, Table, Tag, Popconfirm } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 dayjs.extend(utc);
 import { useDataContext } from '../context/DataContext';
 import { API_BASE } from '../config/data';
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../context/AuthContext';
 const { Title } = Typography;
 
 const NewGroupQuotation = ({ isDark }) => {
-    const { user } = useAuthContext()
+    const { user } = useAuthContext();
     const navigate = useNavigate();
-    const [price, setPrice] = useState({
-        adults: 0,
-        infant: 0,
-        children: 0
-    })
-    const [passengerType, setPassengerType] = useState({
-        adults: 0,
-        infant: 0, // Keep this consistent throughout
-        children: 0
-    });
-    const [rawCodes, setRawCodes] = useState('')
-    const [processing, setProcessing] = useState(false)
+    const [selectedCurrency, setSelectedCurrency] = useState('GBP');
+    const [exchangeRates, setExchangeRates] = useState({ USD: 1.08, GBP: 0.85, EUR: 1.0, AED: 4.0, SAR: 4.1 });
+
+    useEffect(() => {
+        const fetchRates = async () => {
+            try {
+                const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+                const data = await response.json();
+                if (data && data.rates) {
+                    setExchangeRates(data.rates);
+                }
+            } catch (error) {
+                console.error('Failed to fetch exchange rates, using local fallbacks:', error);
+            }
+        };
+        fetchRates();
+    }, []);
+
+    const handleCurrencyChange = (newCurrency) => {
+        const prevRate = exchangeRates[selectedCurrency] || 1;
+        const newRate = exchangeRates[newCurrency] || 1;
+        const factor = newRate / prevRate;
+
+        const adultP = form.getFieldValue('priceAdult');
+        const childP = form.getFieldValue('priceChild');
+        const infantP = form.getFieldValue('priceInfant');
+
+        const patch = {};
+
+        if (adultP !== undefined && adultP !== null) {
+            patch.priceAdult = Number((adultP * factor).toFixed(2));
+        }
+        if (childP !== undefined && childP !== null) {
+            patch.priceChild = Number((childP * factor).toFixed(2));
+        }
+        if (infantP !== undefined && infantP !== null) {
+            patch.priceInfant = Number((infantP * factor).toFixed(2));
+        }
+
+        form.setFieldsValue(patch);
+        setSelectedCurrency(newCurrency);
+
+        // Manually trigger summary recalculation as setFieldsValue doesn't trigger onValuesChange
+        handleValuesChange({}, form.getFieldsValue());
+    };
+
+    const currencySymbols = {
+        USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR',
+        CAD: 'C$', AUD: 'A$', JPY: '¥', INR: '₹', CNY: '¥',
+        CHF: 'CHF', SGD: 'S$', HKD: 'HK$', NZD: 'NZ$', SEK: 'kr',
+        NOK: 'kr', DKK: 'kr', TRY: '₺', RUB: '₽', ZAR: 'R',
+        BRL: 'R$', MXN: '$', PLN: 'zł', PHP: '₱', IDR: 'Rp',
+        THB: '฿', MYR: 'RM', VND: '₫', KRW: '₩'
+    };
+    const getSymbol = (code) => currencySymbols[code] || code || '£';
+
+    const [rawCodes, setRawCodes] = useState('');
+    const [processing, setProcessing] = useState(false);
     const [form] = Form.useForm();
     const [flights, setFlights] = useState([]);
     const [loading, setLoading] = useState(false);
-    const { hotels } = useDataContext()
-    const [formHotels, setFormHotels] = useState([]);
-
-    const addHotel = () => {
-        const newHotel = {
-            id: Date.now(),
-            hotel_id: null,
-            room_type: null,
-            meal_plan: null,
-            check_in: null,
-            check_out: null,
-            nights: 0,
-            noOfRooms: 0,
-        };
-        setFormHotels([...formHotels, newHotel]);
-    };
-
-    const removeHotel = (id) => {
-        setFormHotels(formHotels.filter(h => h.id !== id));
-    };
-
-    // const updateHotel = (id, field, value) => {
-    //   setFormHotels(formHotels.map(h => h.id === id ? { ...h, [field]: value } : h));
-    // };
-    const updateHotel = (id, field, value) => {
-        setFormHotels(formHotels.map(h => {
-            if (h.id === id) {
-                const updatedHotel = { ...h, [field]: value };
-
-                // Auto-calculate nights if both dates exist
-                if (updatedHotel.check_in && updatedHotel.check_out) {
-                    const start = dayjs(updatedHotel.check_in);
-                    const end = dayjs(updatedHotel.check_out);
-
-                    // Calculate difference in days
-                    const diff = end.diff(start, 'day');
-
-                    // Ensure we don't have negative nights
-                    updatedHotel.nights = diff > 0 ? diff : 0;
-                }
-
-                return updatedHotel;
+    const { hotels } = useDataContext();
+    const [summary, setSummary] = useState({
+        groups: [
+            {
+                index: 1,
+                leaderName: "Group #1",
+                adults: 0,
+                children: 0,
+                infants: 0,
+                pax: 0,
+                amount: 0
             }
-            return h;
-        }));
-    };
+        ],
+        totals: {
+            adults: 0,
+            children: 0,
+            infants: 0,
+            pax: 0,
+            amount: 0
+        }
+    });
+
+    useEffect(() => {
+        // Trigger a calculation on mount to populate summary with initial values
+        handleValuesChange({}, form.getFieldsValue());
+    }, []);
 
     const passengerOptions = Array.from({ length: 30 }, (_, i) => ({
         label: i.toString(),
         value: i,
     }));
 
-    useEffect(() => {
-        const total =
-            (price.adults * passengerType.adults) +
-            (price.children * passengerType.children) +
-            (price.infant * passengerType.infant);
-
-        // This physically updates the value shown in the "totalPrice" InputNumber
-        form.setFieldsValue({ totalPrice: total });
-    }, [price, passengerType, form]);
-
-    const rawCodesParser = async () => {
-        if (!rawCodes.trim()) {
-            message.error('Please paste itinerary code first');
-            return;
-        }
-        setProcessing(true);
-        try {
-            setFlights([])
-            form.resetFields()
-            const response = await fetch(`${API_BASE}/quotation/process-raw-codes`, {
-                method: 'POST',
-                headers: {
-                    "Content-Type": 'application/json'
-                },
-                body: JSON.stringify({ rawCodes })
-            });
-            const result = await response.json();
-
-            if (result.success && result.data) {
-                console.log(JSON.stringify(result.data))
-                const { passengers, flights } = result.data;
-
-                // Format passenger names
-                const passengerNames = passengers
-                    .map(p => `${p.firstName} ${p.lastName}`)
-                    .join(', ');
-
-                // Set passenger names to form
-                form.setFieldValue('passengers_names', passengerNames);
-                // setPassengerType({
-                //   adults: passengers.filter(item => item.type.category == 'adult').length,
-                //   infant: passengers.filter(item => item.type.category == 'children').length,
-                //   children: passengers.filter(item => item.type.category == 'infant').length
-                // })
-                // Set number of adults (rough estimate - count passengers)
-                const adultCount = passengers.filter(item => item.type.category === 'adult').length;
-                const childCount = passengers.filter(item => item.type.category === 'children').length;
-                const infantCount = passengers.filter(item => item.type.category === 'infant').length;
-
-                // 1. Update the Form (for the UI)
-                form.setFieldsValue({
-                    adults: adultCount,
-                    children: childCount,
-                    infants: infantCount
-                });
-
-                // 2. Update the State (for the Pricing Math)
-                setPassengerType({
-                    adults: adultCount,
-                    children: childCount,
-                    infant: infantCount // Match your state key name
-                });
-
-                // Parse and set flights
-                if (flights && flights.length > 0) {
-                    const parsedFlights = flights.map((flight, index) => ({
-                        ...flight,
-                        id: Date.now() + index,
-                        from: flight.origin?.city || flight.origin?.iata || '',
-                        to: flight.destination?.city || flight.destination?.iata || '',
-                        // Use .utc(true) to parse the string and keep the time exactly as is
-                        date: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
-                        departureDateTime: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
-                        arrivalDateTime: flight.arrivalISO ? dayjs.utc(flight.arrivalISO) : null,
-                        airline: flight.airline?.name || flight.airline?.iata || ''
-                    }));
-                    setFlights(parsedFlights);
-                }
-
-                message.success('Data parsed and auto-filled successfully!');
-            } else {
-                message.error(result.error || 'Failed to parse itinerary');
-            }
-        } catch (error) {
-            console.error(error);
-            message.error('Error parsing itinerary: ' + error.message);
-        } finally {
-            setProcessing(false);
-        }
-    }
-
     const hotelOptions = hotels.map((item) => ({
-        // Use the actual database ID instead of a hardcoded 1
         value: item._id,
         label: `${item.name} ${item.hotelType ? ` - ${item.hotelType} Stars` : ''}`,
         location: `${item.city}, ${item.country}`,
     }));
+
+    // Auto-calculates nights and global package price
+    const handleValuesChange = (changedValues, allValues) => {
+        let total = 0;
+        const adultPrice = Number(allValues.priceAdult) || 0;
+        const childPrice = Number(allValues.priceChild) || 0;
+        const infantPrice = Number(allValues.priceInfant) || 0;
+
+        let groupsUpdated = false;
+        let totalAdults = 0;
+        let totalChildren = 0;
+        let totalInfants = 0;
+        const summaryGroups = [];
+
+        const updatedGroups = (allValues.groups || []).map((group, index) => {
+            const adults = Number(group.adults) || 0;
+            const children = Number(group.children) || 0;
+            const infants = Number(group.infants) || 0;
+
+            totalAdults += adults;
+            totalChildren += children;
+            totalInfants += infants;
+
+            const groupAmount = (adults * adultPrice) + (children * childPrice) + (infants * infantPrice);
+            total += groupAmount;
+
+            summaryGroups.push({
+                index: index + 1,
+                leaderName: group.customer_name || `Group #${index + 1}`,
+                adults,
+                childrenCount: children,
+                infants,
+                pax: adults + children + infants,
+                amount: groupAmount
+            });
+
+            let hotelsUpdated = false;
+            const updatedHotels = (group.hotels || []).map((hotel) => {
+                if (hotel.check_in && hotel.check_out) {
+                    const start = dayjs(hotel.check_in);
+                    const end = dayjs(hotel.check_out);
+                    const diff = end.diff(start, 'day');
+                    const expectedNights = diff > 0 ? diff : 0;
+                    if (hotel.nights !== expectedNights) {
+                        hotelsUpdated = true;
+                        return { ...hotel, nights: expectedNights };
+                    }
+                }
+                return hotel;
+            });
+
+            if (hotelsUpdated) {
+                groupsUpdated = true;
+                return {
+                    ...group,
+                    hotels: updatedHotels
+                };
+            }
+            return group;
+        });
+
+        const patch = { totalPrice: total };
+        if (groupsUpdated) {
+            patch.groups = updatedGroups;
+        }
+        form.setFieldsValue(patch);
+
+        // Update the summary state
+        setSummary({
+            groups: summaryGroups,
+            totals: {
+                adults: totalAdults,
+                children: totalChildren,
+                infants: totalInfants,
+                pax: totalAdults + totalChildren + totalInfants,
+                amount: total
+            }
+        });
+    };
+
+    const addHotelRoom = (groupIndex, hotelIndex) => {
+        const currentGroups = form.getFieldValue('groups') || [];
+        const group = currentGroups[groupIndex] || {};
+        const hotelsList = group.hotels || [];
+        const hotel = hotelsList[hotelIndex] || {};
+        const rooms = hotel.rooms || [];
+        const updatedRooms = [
+            ...rooms,
+            { room_type: null, noOfRooms: 1, meal_plan: null }
+        ];
+        form.setFieldValue(['groups', groupIndex, 'hotels', hotelIndex, 'rooms'], updatedRooms);
+    };
 
     const addFlight = () => {
         setFlights([...flights, { id: Date.now(), from: '', to: '', date: null, departureDateTime: null, arrivalDateTime: null, airline: '' }]);
@@ -194,39 +220,132 @@ const NewGroupQuotation = ({ isDark }) => {
         );
     };
 
+    const rawCodesParser = async () => {
+        if (!rawCodes.trim()) {
+            message.error('Please paste itinerary code first');
+            return;
+        }
+        setProcessing(true);
+        try {
+            setFlights([]);
+            const response = await fetch(`${API_BASE}/quotation/process-raw-codes`, {
+                method: 'POST',
+                headers: {
+                    "Content-Type": 'application/json'
+                },
+                body: JSON.stringify({ rawCodes })
+            });
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                const { passengers, flights: parsedFlightsData } = result.data;
+                const passengerNames = passengers.map(p => `${p.firstName} ${p.lastName}`).join(', ');
+
+                // Auto-fill parsed details to the first group in the list for user convenience
+                const currentGroups = form.getFieldValue('groups') || [{}];
+                const adultCount = passengers.filter(item => item.type.category === 'adult').length;
+                const childCount = passengers.filter(item => item.type.category === 'children').length;
+                const infantCount = passengers.filter(item => item.type.category === 'infant').length;
+
+                currentGroups[0] = {
+                    ...currentGroups[0],
+                    passengers_names: passengerNames,
+                    adults: adultCount,
+                    children: childCount,
+                    infants: infantCount
+                };
+                form.setFieldsValue({ groups: currentGroups });
+                handleValuesChange({}, form.getFieldsValue());
+
+                if (parsedFlightsData && parsedFlightsData.length > 0) {
+                    const parsedFlights = parsedFlightsData.map((flight, index) => ({
+                        ...flight,
+                        id: Date.now() + index,
+                        from: flight.origin?.city || flight.origin?.iata || '',
+                        to: flight.destination?.city || flight.destination?.iata || '',
+                        date: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
+                        departureDateTime: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
+                        arrivalDateTime: flight.arrivalISO ? dayjs.utc(flight.arrivalISO) : null,
+                        airline: flight.airline?.name || flight.airline?.iata || ''
+                    }));
+                    setFlights(parsedFlights);
+                }
+
+                message.success('Data parsed successfully! Flights and Group #1 passenger details updated.');
+            } else {
+                message.error(result.error || 'Failed to parse itinerary');
+            }
+        } catch (error) {
+            console.error(error);
+            message.error('Error parsing itinerary: ' + error.message);
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     const handleSubmit = async (values) => {
         setLoading(true);
         try {
-            const isHotelsValid = formHotels.every(h =>
-                h.hotel_id && h.room_type && h.meal_plan && h.check_in && h.check_out && h.nights >= 0 && h.noOfRooms > 0
-            );
+            const formattedGroups = (values.groups || []).map(group => {
+                const formattedHotels = (group.hotels || []).map(h => {
+                    const firstRoom = h.rooms?.[0] || {};
+                    return {
+                        hotel_id: h.hotel_id,
+                        check_in: h.check_in ? h.check_in.format('YYYY-MM-DD') : null,
+                        check_out: h.check_out ? h.check_out.format('YYYY-MM-DD') : null,
+                        nights: h.nights,
+                        rooms: (h.rooms || []).map(r => ({
+                            room_type: r.room_type,
+                            noOfRooms: r.noOfRooms,
+                            meal_plan: r.meal_plan
+                        })),
+                        room_type: firstRoom.room_type,
+                        noOfRooms: firstRoom.noOfRooms || 1,
+                        meal_plan: firstRoom.meal_plan
+                    };
+                });
+                return {
+                    ...group,
+                    travel_date: group.travel_date ? group.travel_date.format('YYYY-MM-DD') : null,
+                    hotels: formattedHotels
+                };
+            });
 
-            if (formHotels.length > 0 && !isHotelsValid) {
-                message.error("Please fill in all hotel details (Room, Dates, Nights).");
-                return;
-            }
-            // Format dates
+            // Package form details, injecting fallback properties at root level for API compatibility
+            const rate = exchangeRates[selectedCurrency] || 1;
             const formData = {
                 ...values,
+                bookingType: 'Group',
                 created_by: user.id,
-                travel_date: values.travel_date ? values.travel_date.format('YYYY-MM-DD') : null,
-                check_in: values.check_in ? values.check_in.format('YYYY-MM-DD') : null,
-                check_out: values.check_out ? values.check_out.format('YYYY-MM-DD') : null,
+                currency: selectedCurrency,
+                exchangeRate: rate,
+                basePriceAdult: Number(((values.priceAdult || 0) / rate).toFixed(2)),
+                basePriceChild: Number(((values.priceChild || 0) / rate).toFixed(2)),
+                basePriceInfant: Number(((values.priceInfant || 0) / rate).toFixed(2)),
+                baseTotalPrice: Number(((values.totalPrice || 0) / rate).toFixed(2)),
+                travel_date: formattedGroups[0]?.travel_date || null,
+                customer_name: formattedGroups[0]?.customer_name || '',
+                customer_email: formattedGroups[0]?.customer_email || '',
+                customer_phone: formattedGroups[0]?.customer_phone || '',
+                adults: formattedGroups.reduce((sum, g) => sum + (Number(g.adults) || 0), 0),
+                children: formattedGroups.reduce((sum, g) => sum + (Number(g.children) || 0), 0),
+                infants: formattedGroups.reduce((sum, g) => sum + (Number(g.infants) || 0), 0),
+                double_rooms: 0,
+                triple_rooms: 0,
+                quadruple_rooms: 0,
+                total_rooms_required: 0,
+                rooms_booked: 0,
+                remaining_rooms: 0,
+                hotels: formattedGroups[0]?.hotels || [],
                 flights: flights.map((f) => ({
                     ...f,
                     date: f.date ? f.date.format('YYYY-MM-DD') : null,
                     departureDateTime: f.departureDateTime ? f.departureDateTime.format('YYYY-MM-DD HH:mm:ss') : null,
                     arrivalDateTime: f.arrivalDateTime ? f.arrivalDateTime.format('YYYY-MM-DD HH:mm:ss') : null
                 })),
-                hotels: formHotels.map(h => ({
-                    ...h,
-                    check_in: h.check_in ? h.check_in.format('YYYY-MM-DD') : null,
-                    check_out: h.check_out ? h.check_out.format('YYYY-MM-DD') : null
-                }))
+                groups: formattedGroups
             };
 
-            // Here you would send formData to your backend
-            console.log('Form Data:', formData);
             const response = await fetch(`${API_BASE}/quotation/generate-invoice`, {
                 method: 'POST',
                 headers: {
@@ -235,26 +354,24 @@ const NewGroupQuotation = ({ isDark }) => {
                 body: JSON.stringify(formData)
             });
             const result = await response.json();
-            console.log(result)
             if (result.success) {
-                message.success('Quotation saved successfully!');
-                navigate('/quotations')
-                return
+                message.success('Group quotation saved successfully!');
+                navigate('/quotations');
+                return;
             }
             message.error(result.error);
         } catch (error) {
-            message.error('Failed to save quotation');
+            message.error('Failed to save group quotation');
         } finally {
             setLoading(false);
         }
-    };// Add these helper functions at the top of your component
+    };
+
     const disabledCheckIn = (current) => {
-        // Can't select days before today
         return current && current < dayjs().startOf('day');
     };
 
     const disabledCheckOut = (checkInDate) => (current) => {
-        // Allow the same day by only disabling dates strictly BEFORE the check-in date
         return current && current < dayjs(checkInDate).startOf('day');
     };
 
@@ -266,29 +383,18 @@ const NewGroupQuotation = ({ isDark }) => {
     return (
         <div className="dashboard-page">
             <div className="dashboard-header">
-                <Title level={3} style={{ marginBottom: 0 }}>New Group Quotation</Title>
+                <Title level={3} style={{ marginBottom: 0 }}>New Group Quotation (Multi-Group)</Title>
             </div>
 
             {/* AI Convert Section */}
             <Card style={cardStyle} size="small">
                 <div style={{ marginBottom: 16 }}>
-                    {/* <div style={{ 
-                padding: '12px 16px', 
-                backgroundColor: '#e6f4ff', 
-                border: '1px solid #91caff',
-                borderRadius: '4px',
-                marginBottom: 16,
-                color: '#0050b3'
-              }}>
-                Paste Amadeus / Airline Itinerary Code then click AI Convert to auto-fill.
-              </div> */}
-                    <Alert title="Paste Amadeus / Airline Itinerary Code then click convert to auto-fill" style={{ marginBottom: 8 }} type="info" />
+                    <Alert message="Paste Amadeus / Airline Itinerary Code then click convert to auto-fill flights and Group #1 passengers details." style={{ marginBottom: 8 }} type="info" />
                     <Form.Item name="raw_itinerary" style={{ marginBottom: 8 }}>
                         <Input.TextArea
                             rows={6}
                             placeholder="Paste itinerary..."
                             id="raw_itinerary"
-                            // ✅ Use e.target.value to get the string
                             onChange={(e) => setRawCodes(e.target.value)}
                         />
                     </Form.Item>
@@ -297,100 +403,34 @@ const NewGroupQuotation = ({ isDark }) => {
                     </Button>
                 </div>
             </Card>
+
             <Form
                 form={form}
                 layout="vertical"
                 onFinish={handleSubmit}
+                onValuesChange={handleValuesChange}
                 autoComplete="off"
             >
-                {/* Customer Details */}
-                <Card style={cardStyle} title="Customer Details" size="small">
+                {/* Global Settings */}
+                <Card style={cardStyle} title="Global Settings" size="small">
                     <Row gutter={[16, 16]}>
                         <Col xs={24} sm={12} md={8}>
                             <Form.Item
-                                label="Group Leader Name"
-                                name="customer_name"
-                                rules={[{ required: true, message: 'Please enter group leader name' }]}
-                            >
-                                <Input placeholder="Enter group leader name" />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                                label="Email"
-                                name="customer_email"
-                                rules={[
-                                    { type: 'email', message: 'Invalid email' },
-                                ]}
-                            >
-                                <Input placeholder="Enter email" type="email" />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                                label="Phone"
-                                name="customer_phone"
-                            >
-                                <Input placeholder="Enter phone number" />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                </Card>
-
-                {/* Travel Details */}
-                <Card style={cardStyle} title="Travel Details" size="small">
-                    <Row gutter={[16, 16]}>
-                        <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                                label="Travel Date"
-                                name="travel_date"
-                                rules={[{ required: true, message: 'Please select travel date' }]}
-                            >
-                                <DatePicker
-                                    format="DD-MM-YYYY" style={{ width: '100%' }} />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                                label="Passengers Names"
-                                name="passengers_names"
-                            >
-                                <Input.TextArea rows={3} placeholder="Auto-populated" />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                                label="Adults"
-                                name="adults"
-                                initialValue={0}
+                                label="Quotation Currency"
+                                name="currency"
+                                initialValue="GBP"
                             >
                                 <Select
-                                    onChange={(val) => setPassengerType({ ...passengerType, adults: val })}
-                                    options={passengerOptions}
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                                label="Children"
-                                name="children"
-                                initialValue={0}
-                            >
-                                <Select
-                                    onChange={(val) => setPassengerType({ ...passengerType, children: val })}
-                                    options={passengerOptions}
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} sm={12} md={8}>
-                            <Form.Item
-                                label="Infants"
-                                name="infants"
-                                initialValue={0}
-                            >
-                                <Select
-                                    onChange={(val) => setPassengerType({ ...passengerType, infant: val })}
-                                    options={passengerOptions}
+                                    showSearch
+                                    optionFilterProp="label"
+                                    onChange={handleCurrencyChange}
+                                    options={Object.keys(exchangeRates).map((code) => {
+                                        const sym = currencySymbols[code] ? ` (${currencySymbols[code]})` : '';
+                                        return {
+                                            value: code,
+                                            label: `${code}${sym} - Rate: ${(exchangeRates[code] || 1).toFixed(4)}`
+                                        };
+                                    })}
                                 />
                             </Form.Item>
                         </Col>
@@ -445,13 +485,20 @@ const NewGroupQuotation = ({ isDark }) => {
                                         </Col>
                                         <Col xs={24} sm={12} md={4}>
                                             <Form.Item label=" " style={{ marginBottom: 0 }}>
-                                                <Button
-                                                    danger
-                                                    icon={<DeleteOutlined />}
-                                                    onClick={() => removeFlight(flight.id)}
+                                                <Popconfirm
+                                                    title="Remove Flight Segment"
+                                                    description="Are you sure you want to remove this flight segment?"
+                                                    onConfirm={() => removeFlight(flight.id)}
+                                                    okText="Yes"
+                                                    cancelText="No"
                                                 >
-                                                    Remove
-                                                </Button>
+                                                    <Button
+                                                        danger
+                                                        icon={<DeleteOutlined />}
+                                                    >
+                                                        Remove
+                                                    </Button>
+                                                </Popconfirm>
                                             </Form.Item>
                                         </Col>
                                     </Row>
@@ -490,228 +537,398 @@ const NewGroupQuotation = ({ isDark }) => {
                         icon={<PlusOutlined />}
                         onClick={addFlight}
                         block
+                        style={{ marginBottom: 24 }}
                     >
                         Add Flight Segment
                     </Button>
                 </Card>
 
-                {/* Hotel Details */}
-                <Card style={cardStyle} title="Hotel Details" size="small">
-                    <div style={{ marginBottom: 16 }}>
-                        {formHotels.length === 0 ? (
-                            <p style={{ color: '#999' }}>No hotels added yet</p>
-                        ) : (
-                            formHotels.map((hotel) => (
+                {/* Groups Form List */}
+                <Form.List name="groups" initialValue={[{}]}>
+                    {(fields, { add, remove }) => (
+                        <div>
+                            {fields.map(({ key, name, ...restField }) => (
                                 <Card
-                                    key={hotel.id}
-                                    style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
+                                    key={key}
+                                    title={`Group Leader & Room Requirements #${name + 1}`}
+                                    style={{
+                                        backgroundColor: isDark ? '#1a1a1a' : '#f9f9f9',
+                                        border: `1px solid ${isDark ? '#303030' : '#e8e8e8'}`,
+                                        marginBottom: 32,
+                                        borderRadius: '8px'
+                                    }}
                                     extra={
-                                        <Button
-                                            type="text"
-                                            danger
-                                            icon={<DeleteOutlined />}
-                                            onClick={() => removeHotel(hotel.id)}
-                                        />
+                                        fields.length > 1 && (
+                                            <Popconfirm
+                                                title="Remove Group"
+                                                description="Are you sure you want to remove this group?"
+                                                onConfirm={() => remove(name)}
+                                                okText="Yes"
+                                                cancelText="No"
+                                            >
+                                                <Button
+                                                    type="text"
+                                                    danger
+                                                    icon={<DeleteOutlined />}
+                                                >
+                                                    Remove Group
+                                                </Button>
+                                            </Popconfirm>
+                                        )
                                     }
                                 >
-                                    <Row gutter={[16, 16]}>
-                                        {/* 1. Hotel Selection - REQUIRED */}
-                                        <Col xs={24} sm={12} md={8}>
-                                            <Form.Item
-                                                label="Hotel"
-                                                style={{ marginBottom: 0 }}
-                                                rules={[{ required: true, message: 'Please select a hotel' }]}
-                                            >
-                                                <Select
-                                                    placeholder="-- Select Hotel --"
-                                                    options={hotelOptions}
-                                                    value={hotel._id}
-                                                    onChange={(val) => updateHotel(hotel.id, 'hotel_id', val)}
-                                                />
-                                            </Form.Item>
-                                        </Col>
+                                    {/* Customer Details */}
+                                    <Card style={cardStyle} title="Group Leader Details" size="small">
+                                        <Row gutter={[16, 16]}>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Group Leader Name"
+                                                    name={[name, 'customer_name']}
+                                                    rules={[{ required: true, message: 'Please enter group leader name' }]}
+                                                >
+                                                    <Input placeholder="Enter group leader name" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Email"
+                                                    name={[name, 'customer_email']}
+                                                    rules={[{ type: 'email', message: 'Invalid email' }]}
+                                                >
+                                                    <Input placeholder="Enter email" type="email" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Phone"
+                                                    name={[name, 'customer_phone']}
+                                                >
+                                                    <Input placeholder="Enter phone number" />
+                                                </Form.Item>
+                                            </Col>
+                                        </Row>
+                                    </Card>
 
-                                        {/* 2. Room Type - REQUIRED */}
-                                        <Col xs={24} sm={12} md={8}>
-                                            <Form.Item
-                                                label="Room Type"
-                                                style={{ marginBottom: 0 }}
-                                                rules={[{ required: true, message: 'Room type is required' }]}
-                                            >
-                                                <Select
-                                                    placeholder="Select Room type"
-                                                    value={hotel.room_type}
-                                                    onChange={(val) => updateHotel(hotel.id, 'room_type', val)}
-                                                    options={[
-                                                        { label: "Single", value: "Single" },
-                                                        { label: "Double", value: "Double" },
-                                                        { label: "Triple", value: "Triple" },
-                                                        { label: "Quad", value: "Quad" },
-                                                        { label: "Suites", value: "Suites" },
-                                                        { label: "Family Room", value: "Family Room" }
-                                                    ]}
-                                                />
-                                            </Form.Item>
-                                        </Col>
-                                        <Col xs={24} sm={12} md={8}>
-                                            <Form.Item
-                                                label="No. of Rooms"
-                                                style={{ marginBottom: 0 }}
-                                                rules={[{ required: true, message: 'No of rooms is required' }]}
-                                            >
-                                                <InputNumber
-                                                    min={1}
-                                                    style={{ width: '100%' }}
-                                                    placeholder="Number of rooms"
-                                                    value={hotel.noOfRooms}
-                                                    onChange={(val) => updateHotel(hotel.id, 'noOfRooms', val)}
-                                                />
-                                            </Form.Item>
-                                        </Col>
+                                    {/* Travel Details */}
+                                    <Card style={cardStyle} title="Travel Details" size="small">
+                                        <Row gutter={[16, 16]}>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Travel Date"
+                                                    name={[name, 'travel_date']}
+                                                    rules={[{ required: true, message: 'Please select travel date' }]}
+                                                >
+                                                    <DatePicker format="DD-MM-YYYY" style={{ width: '100%' }} />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Passengers Names"
+                                                    name={[name, 'passengers_names']}
+                                                >
+                                                    <Input.TextArea rows={3} placeholder="Enter passenger names" />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Adults"
+                                                    name={[name, 'adults']}
+                                                    initialValue={0}
+                                                >
+                                                    <Select options={passengerOptions} />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Children"
+                                                    name={[name, 'children']}
+                                                    initialValue={0}
+                                                >
+                                                    <Select options={passengerOptions} />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={8}>
+                                                <Form.Item
+                                                    {...restField}
+                                                    label="Infants"
+                                                    name={[name, 'infants']}
+                                                    initialValue={0}
+                                                >
+                                                    <Select options={passengerOptions} />
+                                                </Form.Item>
+                                            </Col>
+                                        </Row>
+                                    </Card>
 
-                                        {/* 3. Meal Plan - REQUIRED */}
-                                        <Col xs={24} sm={12} md={8}>
-                                            <Form.Item
-                                                label="Meal Plan"
-                                                style={{ marginBottom: 0 }}
-                                                rules={[{ required: true, message: 'Meal plan is required' }]}
-                                            >
-                                                <Select
-                                                    placeholder="Select meal plan"
-                                                    value={hotel.meal_plan}
-                                                    onChange={(val) => updateHotel(hotel.id, 'meal_plan', val)}
-                                                    options={[
-                                                        { label: "Room Only", value: "Room Only" },
-                                                        { label: "Breakfast", value: "Breakfast" },
-                                                        { label: "Half Board", value: "Half Board" },
-                                                        { label: "Full Board", value: "Full Board" }
-                                                    ]}
-                                                />
-                                            </Form.Item>
-                                        </Col>
+                                    {/* Accommodation Stays for Group */}
+                                    <Card style={cardStyle} title="Accommodation Stays" size="small">
+                                        <Form.List name={[name, 'hotels']} initialValue={[{}]}>
+                                            {(hotelFields, { add: addHotel, remove: removeHotel }) => (
+                                                <div>
+                                                    {hotelFields.map(({ key: hKey, name: hName, ...restHField }) => (
+                                                        <Card
+                                                            key={hKey}
+                                                            style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
+                                                            extra={
+                                                                <Popconfirm
+                                                                    title="Remove Hotel Stay"
+                                                                    description="Are you sure you want to remove this hotel stay?"
+                                                                    onConfirm={() => removeHotel(hName)}
+                                                                    okText="Yes"
+                                                                    cancelText="No"
+                                                                >
+                                                                    <Button
+                                                                        type="text"
+                                                                        danger
+                                                                        icon={<DeleteOutlined />}
+                                                                    />
+                                                                </Popconfirm>
+                                                            }
+                                                        >
+                                                            <Row gutter={[16, 16]}>
+                                                                <Col xs={24} sm={12} md={6}>
+                                                                    <Form.Item
+                                                                        {...restHField}
+                                                                        label="Hotel"
+                                                                        name={[hName, 'hotel_id']}
+                                                                        style={{ marginBottom: 0 }}
+                                                                        rules={[{ required: true, message: 'Please select a hotel' }]}
+                                                                    >
+                                                                        <Select
+                                                                            showSearch
+                                                                            placeholder="-- Select Hotel --"
+                                                                            optionFilterProp="label"
+                                                                            filterOption={(input, option) => {
+                                                                                const term = (input || '').toLowerCase();
+                                                                                const labelMatches = (option?.label || '').toLowerCase().includes(term);
+                                                                                const locationMatches = (option?.location || '').toLowerCase().includes(term);
+                                                                                return labelMatches || locationMatches;
+                                                                            }}
+                                                                            options={hotelOptions}
+                                                                        />
+                                                                    </Form.Item>
+                                                                </Col>
+                                                                <Col xs={24} sm={12} md={6}>
+                                                                    <Form.Item
+                                                                        {...restHField}
+                                                                        label="Check-in"
+                                                                        name={[hName, 'check_in']}
+                                                                        style={{ marginBottom: 0 }}
+                                                                        rules={[{ required: true, message: 'Check-in is required' }]}
+                                                                    >
+                                                                        <DatePicker
+                                                                            format="DD-MM-YYYY"
+                                                                            style={{ width: '100%' }}
+                                                                            disabledDate={disabledCheckIn}
+                                                                        />
+                                                                    </Form.Item>
+                                                                </Col>
+                                                                <Col xs={24} sm={12} md={6}>
+                                                                    <Form.Item
+                                                                        {...restHField}
+                                                                        label="Check-out"
+                                                                        name={[hName, 'check_out']}
+                                                                        style={{ marginBottom: 0 }}
+                                                                        rules={[{ required: true, message: 'Check-out is required' }]}
+                                                                    >
+                                                                        <DatePicker
+                                                                            format="DD-MM-YYYY"
+                                                                            style={{ width: '100%' }}
+                                                                        />
+                                                                    </Form.Item>
+                                                                </Col>
+                                                                <Col xs={24} sm={12} md={6}>
+                                                                    <Form.Item
+                                                                        {...restHField}
+                                                                        label="Nights"
+                                                                        name={[hName, 'nights']}
+                                                                        style={{ marginBottom: 0 }}
+                                                                    >
+                                                                        <InputNumber min={0} style={{ width: '100%' }} readOnly />
+                                                                    </Form.Item>
+                                                                </Col>
+                                                            </Row>
 
-                                        {/* 4. Check-in - REQUIRED */}
-                                        <Col xs={24} sm={12} md={8}>
-                                            <Form.Item
-                                                label="Check-in"
-                                                style={{ marginBottom: 0 }}
-                                                rules={[{ required: true, message: 'Check-in date is required' }]}
-                                            >
-                                                <DatePicker
-                                                    format="DD-MM-YYYY"
-                                                    style={{ width: '100%' }}
-                                                    disabledDate={disabledCheckIn}
-                                                    value={hotel.check_in}
-                                                    onChange={(date) => updateHotel(hotel.id, 'check_in', date)}
-                                                />
-                                            </Form.Item>
-                                        </Col>
+                                                            {/* Nested Rooms Configuration */}
+                                                            <div style={{ marginTop: 16, padding: 12, borderRadius: 8, border: '1px dashed #d9d9d9', background: isDark ? '#1f1f1f' : '#fafafa' }}>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                                                    <span style={{ fontWeight: 'bold' }}>Rooms Configuration</span>
+                                                                    <Button
+                                                                        type="link"
+                                                                        size="small"
+                                                                        icon={<PlusOutlined />}
+                                                                        onClick={() => addHotelRoom(name, hName)}
+                                                                    >
+                                                                        Add Room Type
+                                                                    </Button>
+                                                                </div>
 
-                                        {/* 5. Check-out - REQUIRED */}
-                                        <Col xs={24} sm={12} md={8}>
-                                            <Form.Item
-                                                label="Check-out"
-                                                style={{ marginBottom: 0 }}
-                                                rules={[{ required: true, message: 'Check-out date is required' }]}
-                                            >
-                                                <DatePicker
-                                                    format="DD-MM-YYYY"
-                                                    style={{ width: '100%' }}
-                                                    value={hotel.check_out}
-                                                    disabled={!hotel.check_in}
-                                                    disabledDate={disabledCheckOut(hotel.check_in)}
-                                                    onChange={(date) => updateHotel(hotel.id, 'check_out', date)}
-                                                />
-                                            </Form.Item>
-                                        </Col>
-
-                                        {/* 6. Nights - REQUIRED */}
-                                        <Col xs={24} sm={12} md={8}>
-                                            <Form.Item
-                                                label="Nights"
-                                                style={{ marginBottom: 0 }}
-                                                rules={[{ required: true, message: 'Nights count is required' }]}
-                                            >
-                                                <InputNumber
-                                                    min={0}
-                                                    style={{ width: '100%' }}
-                                                    placeholder="Number of nights"
-                                                    value={hotel.nights}
-                                                    onChange={(val) => updateHotel(hotel.id, 'nights', val)}
-                                                />
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
+                                                                <Form.List name={[hName, 'rooms']} initialValue={[{ noOfRooms: 1 }]}>
+                                                                    {(roomFields, { remove: removeRoom }) => (
+                                                                        <div>
+                                                                            {roomFields.map(({ key: rKey, name: rName, ...restRField }) => (
+                                                                                <Row gutter={[8, 8]} key={rKey} align="middle" style={{ marginBottom: 8 }}>
+                                                                                    <Col xs={24} sm={8}>
+                                                                                        <Form.Item
+                                                                                            {...restRField}
+                                                                                            name={[rName, 'room_type']}
+                                                                                            style={{ marginBottom: 0 }}
+                                                                                            rules={[{ required: true, message: 'Required' }]}
+                                                                                        >
+                                                                                            <Select
+                                                                                                placeholder="Room Type"
+                                                                                                style={{ width: '100%' }}
+                                                                                                options={[
+                                                                                                    { label: "Single", value: "Single" },
+                                                                                                    { label: "Double", value: "Double" },
+                                                                                                    { label: "Triple", value: "Triple" },
+                                                                                                    { label: "Quad", value: "Quad" },
+                                                                                                    { label: "Suites", value: "Suites" },
+                                                                                                    { label: "Family Room", value: "Family Room" }
+                                                                                                ]}
+                                                                                            />
+                                                                                        </Form.Item>
+                                                                                    </Col>
+                                                                                    <Col xs={12} sm={6}>
+                                                                                        <Form.Item
+                                                                                            {...restRField}
+                                                                                            name={[rName, 'noOfRooms']}
+                                                                                            style={{ marginBottom: 0 }}
+                                                                                            rules={[{ required: true, message: 'Required' }]}
+                                                                                        >
+                                                                                            <InputNumber min={1} placeholder="No. of Rooms" style={{ width: '100%' }} />
+                                                                                        </Form.Item>
+                                                                                    </Col>
+                                                                                    <Col xs={12} sm={8}>
+                                                                                        <Form.Item
+                                                                                            {...restRField}
+                                                                                            name={[rName, 'meal_plan']}
+                                                                                            style={{ marginBottom: 0 }}
+                                                                                            rules={[{ required: true, message: 'Required' }]}
+                                                                                        >
+                                                                                            <Select
+                                                                                                placeholder="Meal Plan"
+                                                                                                style={{ width: '100%' }}
+                                                                                                options={[
+                                                                                                    { label: "Room Only", value: "Room Only" },
+                                                                                                    { label: "Breakfast", value: "Breakfast" },
+                                                                                                    { label: "Half Board", value: "Half Board" },
+                                                                                                    { label: "Full Board", value: "Full Board" }
+                                                                                                ]}
+                                                                                            />
+                                                                                        </Form.Item>
+                                                                                    </Col>
+                                                                                    <Col xs={24} sm={2} style={{ textAlign: 'right' }}>
+                                                                                        <Popconfirm
+                                                                                            title="Remove Room Type"
+                                                                                            description="Are you sure you want to remove this room configuration?"
+                                                                                            onConfirm={() => removeRoom(rName)}
+                                                                                            okText="Yes"
+                                                                                            cancelText="No"
+                                                                                        >
+                                                                                            <Button
+                                                                                                type="text"
+                                                                                                danger
+                                                                                                icon={<DeleteOutlined />}
+                                                                                            />
+                                                                                        </Popconfirm>
+                                                                                    </Col>
+                                                                                </Row>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </Form.List>
+                                                            </div>
+                                                        </Card>
+                                                    ))}
+                                                    <Button
+                                                        type="dashed"
+                                                        icon={<PlusOutlined />}
+                                                        onClick={() => addHotel()}
+                                                        block
+                                                    >
+                                                        Add Hotel Stay
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </Form.List>
+                                    </Card>
                                 </Card>
-                            ))
-                        )}
-                    </div>
-                    <Button
-                        type="dashed"
-                        icon={<PlusOutlined />}
-                        onClick={addHotel}
-                        block
-                    >
-                        Add Hotel Room
-                    </Button>
-                </Card>
+                            ))}
+                            <Button
+                                type="dashed"
+                                icon={<PlusOutlined />}
+                                onClick={() => add({})}
+                                block
+                                style={{ marginBottom: 32, height: 48 }}
+                            >
+                                Add Another Group
+                            </Button>
+                        </div>
+                    )}
+                </Form.List>
+
 
                 {/* Pricing */}
                 <Card title="Pricing" size="small" style={{ marginBottom: 24 }}>
                     <Row gutter={[16, 16]}>
-                        {/* Adult Price */}
                         <Col xs={24} sm={8}>
                             <Form.Item
-                                label="Adult Price (£)"
+                                label={`Adult Price (${getSymbol(selectedCurrency)})`}
                                 name="priceAdult"
-                                rules={[{ required: passengerType.adults, message: 'Required' }]}
+                                rules={[{ required: true, message: 'Required' }]}
+                                initialValue={0}
                             >
                                 <InputNumber
                                     min={0}
                                     step={0.01}
                                     style={{ width: '100%' }}
-                                    onChange={val => setPrice({ ...price, adults: Number(val) })}
                                 />
                             </Form.Item>
                         </Col>
 
-                        {/* Child Price - FIXED: Moved onChange to InputNumber */}
                         <Col xs={24} sm={8}>
                             <Form.Item
-                                label="Child Price (£)"
+                                label={`Child Price (${getSymbol(selectedCurrency)})`}
                                 name="priceChild"
-                                rules={[{ required: passengerType.children, message: 'Required' }]}
+                                rules={[{ required: true, message: 'Required' }]}
+                                initialValue={0}
                             >
                                 <InputNumber
                                     min={0}
                                     step={0.01}
                                     style={{ width: '100%' }}
-                                    onChange={val => setPrice({ ...price, children: Number(val) })}
                                 />
                             </Form.Item>
                         </Col>
 
-                        {/* Infant Price */}
                         <Col xs={24} sm={8}>
                             <Form.Item
-                                label="Infant Price (£)"
+                                label={`Infant Price (${getSymbol(selectedCurrency)})`}
                                 name="priceInfant"
-                                rules={[{ required: passengerType.infant, message: 'Required' }]}
+                                rules={[{ required: true, message: 'Required' }]}
+                                initialValue={0}
                             >
                                 <InputNumber
                                     min={0}
                                     step={0.01}
                                     style={{ width: '100%' }}
-                                    onChange={val => setPrice({ ...price, infant: Number(val) })}
                                 />
                             </Form.Item>
                         </Col>
 
-                        {/* Total Price - READ ONLY suggested */}
                         <Col span={24}>
                             <Form.Item
-                                label="Total Package Price (£)"
+                                label={`Total Package Price (${getSymbol(selectedCurrency)}) (Sum of all groups)`}
                                 name="totalPrice"
+                                initialValue={0}
                             >
                                 <InputNumber
                                     readOnly
@@ -720,6 +937,79 @@ const NewGroupQuotation = ({ isDark }) => {
                             </Form.Item>
                         </Col>
                     </Row>
+                </Card>
+
+                {/* Quotation Summary & Totals */}
+                <Card title="Quotation Summary & Totals" size="small" style={{ marginBottom: 24, backgroundColor: isDark ? '#1f1f1f' : '#ffffff' }}>
+                    <Table
+                        dataSource={summary.groups}
+                        columns={[
+                            {
+                                title: 'Group / Leader',
+                                dataIndex: 'leaderName',
+                                key: 'leaderName',
+                                render: (text, record) => (
+                                    <span style={{ fontWeight: 'bold' }}>
+                                        {record.index ? `#${record.index} - ` : ''}{text || 'N/A'}
+                                    </span>
+                                )
+                            },
+                            {
+                                title: 'Adults',
+                                dataIndex: 'adults',
+                                key: 'adults',
+                                align: 'center'
+                            },
+                            {
+                                title: 'Children',
+                                dataIndex: 'childrenCount',
+                                key: 'childrenCount',
+                                align: 'center'
+                            },
+                            {
+                                title: 'Infants',
+                                dataIndex: 'infants',
+                                key: 'infants',
+                                align: 'center'
+                            },
+                            {
+                                title: 'Total Passengers (PAX)',
+                                dataIndex: 'pax',
+                                key: 'pax',
+                                align: 'center',
+                                render: (val) => <Tag color="blue">{val}</Tag>
+                            },
+                            {
+                                title: 'Subtotal Amount',
+                                dataIndex: 'amount',
+                                key: 'amount',
+                                align: 'right',
+                                render: (val) => <span style={{ fontWeight: 'bold', color: '#16a34a' }}>{getSymbol(selectedCurrency)}{val.toFixed(2)}</span>
+                            }
+                        ]}
+                        pagination={false}
+                        rowKey="index"
+                        summary={() => (
+                            <Table.Summary fixed>
+                                <Table.Summary.Row style={{ background: isDark ? '#262626' : '#fafafa', fontWeight: 'bold' }}>
+                                    <Table.Summary.Cell index={0}>Overall Totals</Table.Summary.Cell>
+                                    <Table.Summary.Cell index={1} align="center">{summary.totals.adults}</Table.Summary.Cell>
+                                    <Table.Summary.Cell index={2} align="center">{summary.totals.children}</Table.Summary.Cell>
+                                    <Table.Summary.Cell index={3} align="center">{summary.totals.infants}</Table.Summary.Cell>
+                                    <Table.Summary.Cell index={4} align="center">
+                                        <Tag color="geekblue" style={{ fontSize: '13px', padding: '2px 8px' }}>
+                                            {summary.totals.pax} PAX
+                                        </Tag>
+                                    </Table.Summary.Cell>
+                                    <Table.Summary.Cell index={5} align="right">
+                                        <span style={{ color: '#16a34a', fontSize: '15px' }}>
+                                            {getSymbol(selectedCurrency)}{summary.totals.amount.toFixed(2)}
+                                        </span>
+                                    </Table.Summary.Cell>
+                                </Table.Summary.Row>
+                            </Table.Summary>
+                        )}
+                    />
                 </Card>
 
                 {/* Additional Information */}
@@ -771,9 +1061,9 @@ Once a reservation is confirmed, the booking is strictly non-amendable and non-r
                 <Form.Item>
                     <Space>
                         <Button type="primary" htmlType="submit" size="medium" loading={loading}>
-                            Generate Quotation
+                            Generate Multi-Group Quotation
                         </Button>
-                        <Button size="medium">
+                        <Button size="medium" onClick={() => form.resetFields()}>
                             Reset Form
                         </Button>
                     </Space>

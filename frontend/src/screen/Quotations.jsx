@@ -43,19 +43,28 @@ const Quotations = () => {
         fetchQuotations()
     }, [])
 
-    // const [deletingId, setDeletingId] = React.useState(null);
+    const [deletingId, setDeletingId] = React.useState(null);
 
-    // const handleDelete = async (id) => {
-    //     setDeletingId(id);
-    //     try {
-    //         await deleteQuotation(id);
-    //         messageApi.success('Quotation deleted');
-    //     } catch (error) {
-    //         messageApi.error(error.message || 'Failed to delete');
-    //     } finally {
-    //         setDeletingId(null);
-    //     }
-    // };
+    const handleDelete = async (id) => {
+        setDeletingId(id);
+        try {
+            const res = await fetch(`${API_BASE}/quotation/mark-trash/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await res.json();
+            if (result.success) {
+                messageApi.success('Quotation moved to trash successfully');
+                fetchQuotations();
+            } else {
+                messageApi.error(result.error || 'Failed to move quotation to trash');
+            }
+        } catch (error) {
+            messageApi.error(error.message || 'Failed to move quotation to trash');
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
     const columns = [
         {
@@ -68,7 +77,17 @@ const Quotations = () => {
             title: 'Quotation No',
             dataIndex: 'quotation_no',
             key: 'quotation_no',
-            render: (text) => <span style={{ fontWeight: 'bold' }}>{text}</span>,
+            render: (text, record) => {
+                const isGroup = record.bookingType === 'Group';
+                return (
+                    <Space size="small">
+                        <span style={{ fontWeight: 'bold' }}>{text}</span>
+                        <Tag color={isGroup ? 'purple' : 'blue'} style={{ borderRadius: '4px' }}>
+                            {isGroup ? 'Group' : 'Individual'}
+                        </Tag>
+                    </Space>
+                );
+            },
         },
         {
             title: 'Customer',
@@ -83,9 +102,14 @@ const Quotations = () => {
         },
         {
             title: 'Total Price',
-            dataIndex: ['pricing', 'totalPrice'], // Mapping to nested pricing object
             key: 'totalPrice',
-            render: (price) => <span style={{ color: '#16a34a', fontWeight: 'bold' }}>£{price?.toFixed(2)}</span>,
+            render: (_, record) => {
+                const price = record.pricing?.totalPrice;
+                const currency = record.pricing?.currency || 'EUR';
+                const symbols = { USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR' };
+                const symbol = symbols[currency] || currency;
+                return <span style={{ color: '#16a34a', fontWeight: 'bold' }}>{symbol}{price?.toFixed(2)}</span>;
+            },
         },
         // {
         //     title: 'Status',
@@ -140,15 +164,16 @@ const Quotations = () => {
                     >
                         Edit
                     </Button>
-                    {/* <Popconfirm
+                    <Popconfirm
                         title="Delete Quotation"
+                        description="Are you sure you want to move this quotation to trash?"
                         onConfirm={() => handleDelete(record._id)}
                         okButtonProps={{ loading: deletingId === record._id }}
                     >
                         <Button danger type="link" icon={<FiTrash />} loading={deletingId === record._id}>
                             Delete
                         </Button>
-                    </Popconfirm> */}
+                    </Popconfirm>
                 </Space>
             ),
         },

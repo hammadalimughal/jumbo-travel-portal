@@ -12,6 +12,8 @@ const { Title, Text } = Typography;
 
 const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) => {
     const navigate = useNavigate();
+    const currencySymbols = { USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR' };
+    const getSymbol = (code) => currencySymbols[code] || code || '£';
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -298,6 +300,44 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                             ]}
                         />
 
+                        {data.bookingType === 'Group' && data.groups && data.groups.length > 0 && (
+                            <div style={{ marginTop: 24 }}>
+                                <Title level={5} style={{ marginBottom: 16 }}>Groups Breakdown</Title>
+                                {data.groups.map((group, idx) => (
+                                    <Descriptions 
+                                        key={group._id || idx} 
+                                        bordered 
+                                        size="small" 
+                                        column={{ xs: 1, sm: 2 }} 
+                                        title={`Group #${idx + 1} - ${group.customer_name}`} 
+                                        style={{ marginBottom: 20 }}
+                                    >
+                                        <Descriptions.Item label="Email">{group.customer_email || 'N/A'}</Descriptions.Item>
+                                        <Descriptions.Item label="Phone">{group.customer_phone || 'N/A'}</Descriptions.Item>
+                                        <Descriptions.Item label="Travel Date">{group.travel_date ? dayjs.utc(group.travel_date).format('DD-MM-YYYY') : 'N/A'}</Descriptions.Item>
+                                        <Descriptions.Item label="Passengers" span={2}>
+                                            {group.passengers_names || 'N/A'} <br />
+                                            <Text type="secondary" style={{ fontSize: '11px' }}>
+                                                ({group.adults || 0} Adults, {group.children || 0} Children, {group.infants || 0} Infants)
+                                            </Text>
+                                        </Descriptions.Item>
+                                        <Descriptions.Item label="Accommodations Stays" span={2}>
+                                            {(group.hotels || []).map((h, hIdx) => {
+                                                const hotelName = h.hotel_id?.name || h.name || 'Manual Entry';
+                                                return (
+                                                    <div key={h._id || hIdx} style={{ marginBottom: 8, borderBottom: hIdx < (group.hotels.length - 1) ? '1px dashed #f0f0f0' : 'none', paddingBottom: 8 }}>
+                                                        <strong>{hotelName}</strong> ({h.nights} Nights, {h.check_in ? dayjs.utc(h.check_in).format('DD-MM-YYYY') : 'N/A'} to {h.check_out ? dayjs.utc(h.check_out).format('DD-MM-YYYY') : 'N/A'})
+                                                        <br />
+                                                        Rooms: {(h.rooms || []).map((r, rIdx) => `${r.noOfRooms}x ${r.room_type || 'N/A'} (${r.meal_plan || 'N/A'})`).join(', ') || `${h.noOfRooms || 1}x ${h.room_type || 'N/A'} (${h.meal_plan || 'N/A'})`}
+                                                    </div>
+                                                );
+                                            })}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Pricing and Totals Section */}
                         <div style={{ marginTop: 24, padding: '16px', borderRadius: '4px' }}>
                             <Row justify="end">
@@ -305,7 +345,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                                     <Space direction="vertical" align="end" size={0}>
                                         {/* <Text type="secondary">Average Price Per Person: £{(data.pricing.totalPrice / (data.passenger_counts.adults + data.passenger_counts.children)).toFixed(2)}</Text> */}
                                         <Title level={4} style={{ margin: 0, }}>
-                                            Total Package Price: £{data.pricing.totalPrice.toFixed(2)}
+                                            Total Package Price: {getSymbol(data.pricing.currency)}{data.pricing.totalPrice.toFixed(2)}
                                         </Title>
                                     </Space>
                                 </Col>

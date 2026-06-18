@@ -35,7 +35,7 @@ const AntdDashboard = () => {
             title: 'Total Amount',
             dataIndex: 'amount',
             key: 'amount',
-            render: (val) => `£${val.toLocaleString()}`
+            render: (val) => `€${val.toLocaleString()}`
         }
     ];
 

@@ -64,9 +64,14 @@ const TrashedQuotations = () => {
         },
         {
             title: 'Total Price',
-            dataIndex: ['pricing', 'totalPrice'],
             key: 'totalPrice',
-            render: (price) => `£${price?.toFixed(2)}`
+            render: (_, record) => {
+                const price = record.pricing?.totalPrice;
+                const currency = record.pricing?.currency || 'EUR';
+                const symbols = { USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR' };
+                const symbol = symbols[currency] || currency;
+                return `${symbol}${price?.toFixed(2)}`;
+            }
         },
         {
             title: 'Deleted At',

@@ -125,37 +125,83 @@ router.post('/generate-invoice', async (req, res) => {
                 infants: data.infants
             },
             pricing: {
+                currency: data.currency || 'GBP',
+                exchangeRate: data.exchangeRate || 0.85,
                 priceAdult: data.priceAdult,
                 priceChild: data.priceChild,
                 priceInfant: data.priceInfant,
-                totalPrice: data.totalPrice
+                totalPrice: data.totalPrice,
+                basePriceAdult: data.basePriceAdult || ((data.priceAdult || 0) / (data.exchangeRate || 0.85)),
+                basePriceChild: data.basePriceChild || ((data.priceChild || 0) / (data.exchangeRate || 0.85)),
+                basePriceInfant: data.basePriceInfant || ((data.priceInfant || 0) / (data.exchangeRate || 0.85)),
+                baseTotalPrice: data.baseTotalPrice || ((data.totalPrice || 0) / (data.exchangeRate || 0.85))
             }
         })
         const hotels = await Hotel.find().lean()
+        const mappedGroups = (data.groups || []).map((group) => ({
+            ...group,
+            hotels: (group.hotels || []).map((h) => {
+                const hotelInfo = hotels.find(hotel => hotel._id.toString() === (h.hotel_id ? h.hotel_id.toString() : '')) || {};
+                return {
+                    ...h,
+                    name: hotelInfo.name || h.name || 'Manual Entry',
+                    city: hotelInfo.city || '',
+                    country: hotelInfo.country || ''
+                };
+            })
+        }));
         const pdfHtml = createPdfHtml({
-            ...data, hotels: data.hotels.map((item) => ({
+            ...data,
+            hotels: (data.hotels || []).map((item) => ({
                 ...item,
-                ...hotels.find(hotel => hotel._id == item.hotel_id),
+                ...hotels.find(hotel => hotel._id.toString() === (item.hotel_id ? item.hotel_id.toString() : '')),
             })),
+            groups: mappedGroups,
             quotation_no: quotation.quotation_no
         })
-        var url
+        var url;
         try {
-            url = await generateHtmlToPdf(pdfHtml, quotation.quotation_no)
-            // url = await generateHtmlToPdfWindows(pdfHtml, quotation.quotation_no)
+            url = await generateHtmlToPdf(pdfHtml, quotation.quotation_no);
         } catch (error) {
-            console.log(error.message)
+            console.error("PDF generation error:", error.message);
         }
-        quotation.invoice = url?.url
-        await quotation.save()
-        sendMail()
-        return res.json({ success: true, data, url, message: 'Quoation Saved Successfully' })
+
+        try {
+            if (url?.url) {
+                quotation.invoice = url.url;
+                await quotation.save();
+            }
+        } catch (dbError) {
+            console.error("Failed to save PDF invoice URL to quotation:", dbError.message);
+        }
+
+        try {
+            if (data.customer_email) {
+                const emailSubject = `Quotation ${quotation.quotation_no} - Jumbo Travel`;
+                const emailBody = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+                        <h2>Quotation Generated</h2>
+                        <p>Dear ${data.customer_name},</p>
+                        <p>Thank you for choosing Jumbo Travel. We are pleased to provide you with your quotation reference: <strong>${quotation.quotation_no}</strong>.</p>
+                        <p>You can view your quotation PDF invoice at: <a href="http://localhost:6947${url?.url || ''}" target="_blank">View Invoice</a></p>
+                        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                        <p style="font-size: 12px; color: #999;">Jumbo Travel Team</p>
+                    </div>
+                `;
+                console.log(`Sending quotation email to: ${data.customer_email}`);
+                await sendMail(data.customer_email, emailSubject, emailBody);
+            }
+        } catch (mailError) {
+            console.error("Error sending quotation email:", mailError.message);
+        }
+
+        return res.json({ success: true, data, url, message: 'Quotation Saved Successfully' });
     } catch (error) {
-        console.log(error)
+        console.error("Generate invoice route error:", error);
         res.json({
-            status: false,
+            success: false,
             error: error.message
-        })
+        });
     }
 })
 
@@ -170,7 +216,7 @@ router.get('/dashboard-stats', async (req, res) => {
             {
                 $group: {
                     _id: { $dateToString: { format: groupFormat, date: "$created_at" } },
-                    amount: { $sum: "$pricing.totalPrice" },
+                    amount: { $sum: { $ifNull: [ "$pricing.baseTotalPrice", "$pricing.totalPrice" ] } },
                     quotes: { $sum: 1 },
                     flights: { $sum: { $size: "$flights" } }
                 }
@@ -256,12 +302,19 @@ router.put('/update/:id', async (req, res) => {
 
         quotation.flights = data.flights || [];
         quotation.hotels = data.hotels || [];
+        quotation.groups = data.groups || [];
 
         quotation.pricing = {
+            currency: data.currency || 'GBP',
+            exchangeRate: data.exchangeRate || 0.85,
             priceAdult: data.priceAdult || 0,
             priceChild: data.priceChild || 0,
             priceInfant: data.priceInfant || 0,
-            totalPrice: data.totalPrice || 0
+            totalPrice: data.totalPrice || 0,
+            basePriceAdult: data.basePriceAdult || ((data.priceAdult || 0) / (data.exchangeRate || 0.85)),
+            basePriceChild: data.basePriceChild || ((data.priceChild || 0) / (data.exchangeRate || 0.85)),
+            basePriceInfant: data.basePriceInfant || ((data.priceInfant || 0) / (data.exchangeRate || 0.85)),
+            baseTotalPrice: data.baseTotalPrice || ((data.totalPrice || 0) / (data.exchangeRate || 0.85))
         };
 
         quotation.special_conditions = data.special_conditions;
@@ -273,12 +326,25 @@ router.put('/update/:id', async (req, res) => {
 
         // Regenerate PDF
         const hotels = await Hotel.find().lean();
+        const mappedGroups = (data.groups || []).map((group) => ({
+            ...group,
+            hotels: (group.hotels || []).map((h) => {
+                const hotelInfo = hotels.find(hotel => hotel._id.toString() === (h.hotel_id ? h.hotel_id.toString() : '')) || {};
+                return {
+                    ...h,
+                    name: hotelInfo.name || h.name || 'Manual Entry',
+                    city: hotelInfo.city || '',
+                    country: hotelInfo.country || ''
+                };
+            })
+        }));
         const pdfHtml = createPdfHtml({
             ...data,
             hotels: (data.hotels || []).map((item) => ({
                 ...item,
                 ...hotels.find(hotel => hotel._id.toString() === (item.hotel_id ? item.hotel_id.toString() : '')),
             })),
+            groups: mappedGroups,
             quotation_no: quotation.quotation_no
         });
 

@@ -37,7 +37,18 @@ const HotelBookingSchema = new mongoose.Schema({
         type: String,
         enum: ["Room Only", "Breakfast", "Half Board", "Full Board"]
     },
-    noOfRooms: { type: Number, default: 1 }
+});
+
+const GroupSchema = new mongoose.Schema({
+    customer_name: { type: String, required: true },
+    customer_email: { type: String },
+    customer_phone: { type: String },
+    travel_date: { type: Date },
+    passengers_names: { type: String },
+    adults: { type: Number, default: 0 },
+    children: { type: Number, default: 0 },
+    infants: { type: Number, default: 0 },
+    hotels: [HotelBookingSchema]
 });
 
 const QuotationSchema = new mongoose.Schema({
@@ -62,13 +73,20 @@ const QuotationSchema = new mongoose.Schema({
     // Dynamic Arrays
     flights: [FlightSegmentSchema],
     hotels: [HotelBookingSchema],
+    groups: [GroupSchema],
 
     // Pricing Logic
     pricing: {
+        currency: { type: String, default: 'GBP' },
+        exchangeRate: { type: Number, default: 0.85 },
         priceAdult: { type: Number, default: 0 },
         priceChild: { type: Number, default: 0 },
         priceInfant: { type: Number, default: 0 },
-        totalPrice: { type: Number, required: true }
+        totalPrice: { type: Number, required: true },
+        basePriceAdult: { type: Number, default: 0 },
+        basePriceChild: { type: Number, default: 0 },
+        basePriceInfant: { type: Number, default: 0 },
+        baseTotalPrice: { type: Number, default: 0 }
     },
 
     // Additional Information

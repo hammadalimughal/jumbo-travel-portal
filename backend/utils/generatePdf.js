@@ -16,6 +16,8 @@ const createPdfHtml = (data) => {
         if (!dateVal) return "N/A";
         return dayjs.utc(dateVal).format('DD-MM-YYYY');
     };
+    const currencySymbols = { USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR' };
+    const symbol = currencySymbols[data.currency] || data.currency || '£';
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -77,7 +79,7 @@ const createPdfHtml = (data) => {
             <div class="col text-right" style="font-size: 12px; line-height: 1.6;">
                 <p><strong>Quotation No:</strong> ${data.quotation_no}</p>
                 <p><strong>Date:</strong> ${refactorDate(data.travel_date)}</p>
-                <p>Total Package Price: <span class="text-blue">£${data.totalPrice.toFixed(2)}</span></p>
+                <p>Total Package Price: <span class="text-blue">${symbol}${data.totalPrice.toFixed(2)}</span></p>
                 <p>Email: <span>sales@jumbotraveluk.com</span></p>
                 <p>Phone: <span>02073878264</span></p>
             </div>
@@ -115,40 +117,93 @@ const createPdfHtml = (data) => {
         </table>
 
         
-        <div class="header-section" style="margin-top: 30px;">Hotel Details</div>
-        <table>
-            <tbody>
-                <tr>
-                    <th>Hotel</th>
-                    <th>No. of Rooms</th>
-                    <th>Room Type</th>
-                    <th>Check In</th>
-                    <th>Check Out</th>
-                    <th>Meal Plan</th>
-                    <th>Total Nights</th>
-                </tr>
-                ${data.hotels.map((item) => {
-                    const noOfRoomsCol = item.rooms && item.rooms.length > 0
-                        ? item.rooms.map(r => r.noOfRooms).join('<br>')
-                        : item.noOfRooms || '';
-                    const roomTypeCol = item.rooms && item.rooms.length > 0
-                        ? item.rooms.map(r => r.room_type).join('<br>')
-                        : item.room_type || '';
-                    const mealPlanCol = item.rooms && item.rooms.length > 0
-                        ? item.rooms.map(r => r.meal_plan).join('<br>')
-                        : item.meal_plan || '';
-                    return `<tr>
-                        <td>${item.name || ''}</td>
-                        <td>${noOfRoomsCol}</td>
-                        <td>${roomTypeCol}</td>
-                        <td>${refactorDate(item.check_in)}</td>
-                        <td>${refactorDate(item.check_out)}</td>
-                        <td>${mealPlanCol}</td>
-                        <td>${item.nights}</td>
-                    </tr>`;
-                }).join('')}
-            </tbody>
-        </table>
+        ${data.bookingType === 'Group' && data.groups && data.groups.length > 0 ? `
+            <div class="header-section" style="margin-top: 30px;">Group Breakdown Details</div>
+            ${data.groups.map((grp, gIdx) => {
+                return `
+                <div style="margin-top: 15px; margin-bottom: 25px; padding: 12px; border: 1px dashed #d1d5db; border-radius: 4px; background-color: #fafafa; page-break-inside: avoid;">
+                    <div style="font-size: 12px; line-height: 1.6; margin-bottom: 10px; border-bottom: 1px dashed #d1d5db; padding-bottom: 5px;">
+                        <p><strong>Group #${gIdx + 1} Leader:</strong> ${grp.customer_name}</p>
+                        ${grp.customer_email ? `<p><strong>Email:</strong> ${grp.customer_email}</p>` : ''}
+                        ${grp.customer_phone ? `<p><strong>Phone:</strong> ${grp.customer_phone}</p>` : ''}
+                        <p><strong>Passengers:</strong> ${grp.passengers_names || 'N/A'}</p>
+                        <p><strong>Count:</strong> ${grp.adults || 0} Adult(s), ${grp.children || 0} Child(ren), ${grp.infants || 0} Infant(s)</p>
+                    </div>
+                    <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px;">Accommodation Details:</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hotel</th>
+                                <th>No. of Rooms</th>
+                                <th>Room Type</th>
+                                <th>Check In</th>
+                                <th>Check Out</th>
+                                <th>Meal Plan</th>
+                                <th>Nights</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${(grp.hotels || []).map((h) => {
+                                const noOfRoomsCol = h.rooms && h.rooms.length > 0
+                                    ? h.rooms.map(r => r.noOfRooms).join('<br>')
+                                    : h.noOfRooms || '';
+                                const roomTypeCol = h.rooms && h.rooms.length > 0
+                                    ? h.rooms.map(r => r.room_type).join('<br>')
+                                    : h.room_type || '';
+                                const mealPlanCol = h.rooms && h.rooms.length > 0
+                                    ? h.rooms.map(r => r.meal_plan).join('<br>')
+                                    : h.meal_plan || '';
+                                return `<tr>
+                                    <td>${h.name || 'Manual Entry'}</td>
+                                    <td>${noOfRoomsCol}</td>
+                                    <td>${roomTypeCol}</td>
+                                    <td>${refactorDate(h.check_in)}</td>
+                                    <td>${refactorDate(h.check_out)}</td>
+                                    <td>${mealPlanCol}</td>
+                                    <td>${h.nights}</td>
+                                </tr>`;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                `;
+            }).join('')}
+        ` : `
+            <div class="header-section" style="margin-top: 30px;">Hotel Details</div>
+            <table>
+                <tbody>
+                    <tr>
+                        <th>Hotel</th>
+                        <th>No. of Rooms</th>
+                        <th>Room Type</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th>Meal Plan</th>
+                        <th>Total Nights</th>
+                    </tr>
+                    ${data.hotels.map((item) => {
+                        const noOfRoomsCol = item.rooms && item.rooms.length > 0
+                            ? item.rooms.map(r => r.noOfRooms).join('<br>')
+                            : item.noOfRooms || '';
+                        const roomTypeCol = item.rooms && item.rooms.length > 0
+                            ? item.rooms.map(r => r.room_type).join('<br>')
+                            : item.room_type || '';
+                        const mealPlanCol = item.rooms && item.rooms.length > 0
+                            ? item.rooms.map(r => r.meal_plan).join('<br>')
+                            : item.meal_plan || '';
+                        return `<tr>
+                            <td>${item.name || ''}</td>
+                            <td>${noOfRoomsCol}</td>
+                            <td>${roomTypeCol}</td>
+                            <td>${refactorDate(item.check_in)}</td>
+                            <td>${refactorDate(item.check_out)}</td>
+                            <td>${mealPlanCol}</td>
+                            <td>${item.nights}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        `}
 
         <div style="margin-top: 30px;">
             <table class="price-table">
@@ -159,22 +214,22 @@ const createPdfHtml = (data) => {
                 </tr>
                 ${data.adults ? `<tr>
                     <td>Adults</td>
-                    <td>${data.adults} x £${data.priceAdult.toFixed(2)}</td>
-                    <td>£${(data.adults * data.priceAdult).toFixed(2)}</td>
+                    <td>${data.adults} x ${symbol}${data.priceAdult.toFixed(2)}</td>
+                    <td>${symbol}${(data.adults * data.priceAdult).toFixed(2)}</td>
                 </tr>`: ``}
                 ${data.children ? `<tr>
                     <td>Children</td>
-                     <td>${data.children} x £${data.priceChild.toFixed(2)}</td>
-                     <td>£${(data.children * data.priceChild).toFixed(2)}</td>
+                     <td>${data.children} x ${symbol}${data.priceChild.toFixed(2)}</td>
+                     <td>${symbol}${(data.children * data.priceChild).toFixed(2)}</td>
                 </tr>`: ``}
                 ${data.infants ? `<tr>
                     <td>Infants</td>
-                    <td>${data.infants} x £${data.priceInfant.toFixed(2)}</td>
-                    <td>£${(data.infants * data.priceInfant).toFixed(2)}</td>
+                    <td>${data.infants} x ${symbol}${data.priceInfant.toFixed(2)}</td>
+                    <td>${symbol}${(data.infants * data.priceInfant).toFixed(2)}</td>
                 </tr>`: ``}
                 <tr class="total-row">
                     <td colspan="2">Total Price:</td>
-                    <td>£${data.totalPrice.toFixed(2)}</td>
+                    <td>${symbol}${data.totalPrice.toFixed(2)}</td>
                 </tr>
             </table>
         </div>
@@ -244,11 +299,29 @@ const generateHtmlToPdf = async (htmlContent, fileName) => {
 
         const filePath = path.join(pdfDir, `${fileName}.pdf`);
         const publicUrl = `/pdfs/${fileName}.pdf`;
-        const chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-        const chromePathX86 = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+        let executablePath = "/snap/bin/chromium";
+        if (process.platform === "win32") {
+            const chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+            const chromePathX86 = "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe";
+            const edgePath = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+
+            if (fs.existsSync(chromePath)) {
+                executablePath = chromePath;
+            } else if (fs.existsSync(chromePathX86)) {
+                executablePath = chromePathX86;
+            } else if (fs.existsSync(edgePath)) {
+                executablePath = edgePath;
+            } else {
+                executablePath = undefined;
+            }
+        } else {
+            if (!fs.existsSync(executablePath)) {
+                executablePath = undefined;
+            }
+        }
+
         const browser = await puppeteer.launch({
-            executablePath: "/snap/bin/chromium",   // 👈 use system chromium
-            // executablePath: fs.existsSync(chromePath) ? chromePath : chromePathX86, // 👈 use system chrome
+            ...(executablePath ? { executablePath } : {}),
             headless: "new",
             args: [
                 "--no-sandbox",

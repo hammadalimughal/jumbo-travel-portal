@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert } from 'antd';
+import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert, Popconfirm } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -13,6 +13,62 @@ const { Title } = Typography;
 const NewQuotation = ({ isDark }) => {
   const { user } = useAuthContext()
   const navigate = useNavigate();
+  const [selectedCurrency, setSelectedCurrency] = useState('GBP');
+  const [exchangeRates, setExchangeRates] = useState({ USD: 1.08, GBP: 0.85, EUR: 1.0, AED: 4.0, SAR: 4.1 });
+
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const response = await fetch('https://open.er-api.com/v6/latest/EUR');
+        const data = await response.json();
+        if (data && data.rates) {
+          setExchangeRates(data.rates);
+        }
+      } catch (error) {
+        console.error('Failed to fetch exchange rates, using local fallbacks:', error);
+      }
+    };
+    fetchRates();
+  }, []);
+
+  const handleCurrencyChange = (newCurrency) => {
+    const prevRate = exchangeRates[selectedCurrency] || 1;
+    const newRate = exchangeRates[newCurrency] || 1;
+    const factor = newRate / prevRate;
+
+    const adultP = form.getFieldValue('priceAdult');
+    const childP = form.getFieldValue('priceChild');
+    const infantP = form.getFieldValue('priceInfant');
+
+    if (adultP !== undefined && adultP !== null) {
+      const val = Number((adultP * factor).toFixed(2));
+      form.setFieldValue('priceAdult', val);
+      setPrice(prev => ({ ...prev, adults: val }));
+    }
+    if (childP !== undefined && childP !== null) {
+      const val = Number((childP * factor).toFixed(2));
+      form.setFieldValue('priceChild', val);
+      setPrice(prev => ({ ...prev, children: val }));
+    }
+    if (infantP !== undefined && infantP !== null) {
+      const val = Number((infantP * factor).toFixed(2));
+      form.setFieldValue('priceInfant', val);
+      setPrice(prev => ({ ...prev, infant: val }));
+    }
+
+    setSelectedCurrency(newCurrency);
+  };
+
+  const currencySymbols = {
+    USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR',
+    CAD: 'C$', AUD: 'A$', JPY: '¥', INR: '₹', CNY: '¥',
+    CHF: 'CHF', SGD: 'S$', HKD: 'HK$', NZD: 'NZ$', SEK: 'kr',
+    NOK: 'kr', DKK: 'kr', TRY: '₺', RUB: '₽', ZAR: 'R',
+    BRL: 'R$', MXN: '$', PLN: 'zł', PHP: '₱', IDR: 'Rp',
+    THB: '฿', MYR: 'RM', VND: '₫', KRW: '₩'
+  };
+  const getSymbol = (code) => currencySymbols[code] || code || '£';
+
   const [price, setPrice] = useState({
     adults: 0,
     infant: 0,
@@ -253,10 +309,17 @@ const NewQuotation = ({ isDark }) => {
         return;
       }
       // Format dates
+      const rate = exchangeRates[selectedCurrency] || 1;
       const formData = {
         ...values,
         created_by: user.id,
         travel_date: values.travel_date ? values.travel_date.format('YYYY-MM-DD') : null,
+        currency: selectedCurrency,
+        exchangeRate: rate,
+        basePriceAdult: Number(((values.priceAdult || 0) / rate).toFixed(2)),
+        basePriceChild: Number(((values.priceChild || 0) / rate).toFixed(2)),
+        basePriceInfant: Number(((values.priceInfant || 0) / rate).toFixed(2)),
+        baseTotalPrice: Number(((values.totalPrice || 0) / rate).toFixed(2)),
         flights: flights.map((f) => ({
           ...f,
           date: f.date ? f.date.format('YYYY-MM-DD') : null,
@@ -409,6 +472,26 @@ const NewQuotation = ({ isDark }) => {
             </Col>
             <Col xs={24} sm={12} md={8}>
               <Form.Item
+                label="Quotation Currency"
+                name="currency"
+                initialValue="GBP"
+              >
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  onChange={handleCurrencyChange}
+                  options={Object.keys(exchangeRates).map((code) => {
+                    const sym = currencySymbols[code] ? ` (${currencySymbols[code]})` : '';
+                    return {
+                      value: code,
+                      label: `${code}${sym} - Rate: ${(exchangeRates[code] || 1).toFixed(4)}`
+                    };
+                  })}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item
                 label="Passengers Names"
                 name="passengers_names"
               >
@@ -502,13 +585,20 @@ const NewQuotation = ({ isDark }) => {
                     </Col>
                     <Col xs={24} sm={12} md={4}>
                       <Form.Item label=" " style={{ marginBottom: 0 }}>
-                        <Button
-                          danger
-                          icon={<DeleteOutlined />}
-                          onClick={() => removeFlight(flight.id)}
+                        <Popconfirm
+                          title="Remove Flight Segment"
+                          description="Are you sure you want to remove this flight segment?"
+                          onConfirm={() => removeFlight(flight.id)}
+                          okText="Yes"
+                          cancelText="No"
                         >
-                          Remove
-                        </Button>
+                          <Button
+                            danger
+                            icon={<DeleteOutlined />}
+                          >
+                            Remove
+                          </Button>
+                        </Popconfirm>
                       </Form.Item>
                     </Col>
                   </Row>
@@ -563,12 +653,19 @@ const NewQuotation = ({ isDark }) => {
                   key={hotel.id}
                   style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
                   extra={
-                    <Button
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={() => removeHotel(hotel.id)}
-                    />
+                    <Popconfirm
+                      title="Remove Hotel Stay"
+                      description="Are you sure you want to remove this hotel stay?"
+                      onConfirm={() => removeHotel(hotel.id)}
+                      okText="Yes"
+                      cancelText="No"
+                    >
+                      <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                      />
+                    </Popconfirm>
                   }
                 >
                   <Row gutter={[16, 16]}>
@@ -579,7 +676,15 @@ const NewQuotation = ({ isDark }) => {
                         required
                       >
                         <Select
+                          showSearch
                           placeholder="-- Select Hotel --"
+                          optionFilterProp="label"
+                          filterOption={(input, option) => {
+                            const term = (input || '').toLowerCase();
+                            const labelMatches = (option?.label || '').toLowerCase().includes(term);
+                            const locationMatches = (option?.location || '').toLowerCase().includes(term);
+                            return labelMatches || locationMatches;
+                          }}
                           options={hotelOptions}
                           value={hotel.hotel_id}
                           onChange={(val) => updateHotel(hotel.id, 'hotel_id', val)}
@@ -692,13 +797,21 @@ const NewQuotation = ({ isDark }) => {
                           />
                         </Col>
                         <Col xs={24} sm={2} style={{ textAlign: 'right' }}>
-                          <Button
-                            type="text"
-                            danger
+                          <Popconfirm
+                            title="Remove Room Type"
+                            description="Are you sure you want to remove this room configuration?"
+                            onConfirm={() => removeRoomFromHotel(hotel.id, room.id)}
+                            okText="Yes"
+                            cancelText="No"
                             disabled={(hotel.rooms || []).length <= 1}
-                            icon={<DeleteOutlined />}
-                            onClick={() => removeRoomFromHotel(hotel.id, room.id)}
-                          />
+                          >
+                            <Button
+                              type="text"
+                              danger
+                              disabled={(hotel.rooms || []).length <= 1}
+                              icon={<DeleteOutlined />}
+                            />
+                          </Popconfirm>
                         </Col>
                       </Row>
                     ))}
@@ -723,7 +836,7 @@ const NewQuotation = ({ isDark }) => {
             {/* Adult Price */}
             <Col xs={24} sm={8}>
               <Form.Item
-                label="Adult Price (£)"
+                label={`Adult Price (${getSymbol(selectedCurrency)})`}
                 name="priceAdult"
                 rules={[{ required: passengerType.adults, message: 'Required' }]}
               >
@@ -736,10 +849,10 @@ const NewQuotation = ({ isDark }) => {
               </Form.Item>
             </Col>
 
-            {/* Child Price - FIXED: Moved onChange to InputNumber */}
+            {/* Child Price */}
             <Col xs={24} sm={8}>
               <Form.Item
-                label="Child Price (£)"
+                label={`Child Price (${getSymbol(selectedCurrency)})`}
                 name="priceChild"
                 rules={[{ required: passengerType.children, message: 'Required' }]}
               >
@@ -755,7 +868,7 @@ const NewQuotation = ({ isDark }) => {
             {/* Infant Price */}
             <Col xs={24} sm={8}>
               <Form.Item
-                label="Infant Price (£)"
+                label={`Infant Price (${getSymbol(selectedCurrency)})`}
                 name="priceInfant"
                 rules={[{ required: passengerType.infant, message: 'Required' }]}
               >
@@ -768,10 +881,10 @@ const NewQuotation = ({ isDark }) => {
               </Form.Item>
             </Col>
 
-            {/* Total Price - READ ONLY suggested */}
+            {/* Total Price - READ ONLY */}
             <Col span={24}>
               <Form.Item
-                label="Total Package Price (£)"
+                label={`Total Package Price (${getSymbol(selectedCurrency)})`}
                 name="totalPrice"
               >
                 <InputNumber
