@@ -18,6 +18,58 @@ const createPdfHtml = (data) => {
     };
     const currencySymbols = { USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR' };
     const symbol = currencySymbols[data.currency] || data.currency || '£';
+
+    // Compute consolidated hotel summary for Group bookings
+    const hotelSummaryMap = {};
+    if (data.bookingType === 'Group' && data.groups) {
+        data.groups.forEach(group => {
+            (group.hotels || []).forEach(h => {
+                if (!h.name) return;
+                const hotelName = h.name;
+                const checkInStr = h.check_in ? dayjs.utc(h.check_in).format('YYYY-MM-DD') : 'N/A';
+                const checkOutStr = h.check_out ? dayjs.utc(h.check_out).format('YYYY-MM-DD') : 'N/A';
+                const nights = Number(h.nights) || 0;
+                const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
+                
+                if (!hotelSummaryMap[key]) {
+                    hotelSummaryMap[key] = {
+                        key,
+                        hotelName,
+                        checkIn: h.check_in,
+                        checkOut: h.check_out,
+                        nights,
+                        Single: 0,
+                        Double: 0,
+                        Triple: 0,
+                        Quad: 0,
+                        Suites: 0,
+                        "Family Room": 0,
+                        totalRooms: 0
+                    };
+                }
+                
+                if (h.rooms && h.rooms.length > 0) {
+                    h.rooms.forEach(r => {
+                        const rType = r.room_type || 'Single';
+                        const count = Number(r.noOfRooms) || 0;
+                        if (hotelSummaryMap[key][rType] !== undefined) {
+                            hotelSummaryMap[key][rType] += count;
+                        }
+                        hotelSummaryMap[key].totalRooms += count;
+                    });
+                } else {
+                    const rType = h.room_type || 'Single';
+                    const count = Number(h.noOfRooms) || 1;
+                    if (hotelSummaryMap[key][rType] !== undefined) {
+                        hotelSummaryMap[key][rType] += count;
+                    }
+                    hotelSummaryMap[key].totalRooms += count;
+                }
+            });
+        });
+    }
+    const hotelSummaryList = Object.values(hotelSummaryMap);
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -118,6 +170,42 @@ const createPdfHtml = (data) => {
 
         
         ${data.bookingType === 'Group' && data.groups && data.groups.length > 0 ? `
+            <div class="header-section" style="margin-top: 30px;">Hotel Summary</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Hotel</th>
+                        <th style="text-align: center;">Nights</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th style="text-align: center;">Single</th>
+                        <th style="text-align: center;">Double</th>
+                        <th style="text-align: center;">Triple</th>
+                        <th style="text-align: center;">Quad</th>
+                        <th style="text-align: center;">Suites</th>
+                        <th style="text-align: center;">Family Room</th>
+                        <th style="text-align: center;">Total Rooms</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${hotelSummaryList.map(h => `
+                        <tr>
+                            <td>${h.hotelName}</td>
+                            <td style="text-align: center;">${h.nights}</td>
+                            <td>${h.checkIn ? refactorDate(h.checkIn) : 'N/A'}</td>
+                            <td>${h.checkOut ? refactorDate(h.checkOut) : 'N/A'}</td>
+                            <td style="text-align: center;">${h.Single || '-'}</td>
+                            <td style="text-align: center;">${h.Double || '-'}</td>
+                            <td style="text-align: center;">${h.Triple || '-'}</td>
+                            <td style="text-align: center;">${h.Quad || '-'}</td>
+                            <td style="text-align: center;">${h.Suites || '-'}</td>
+                            <td style="text-align: center;">${h["Family Room"] || '-'}</td>
+                            <td style="text-align: center; font-weight: bold; color: #2563eb;">${h.totalRooms}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+
             <div class="header-section" style="margin-top: 30px;">Group Breakdown Details</div>
             ${data.groups.map((grp, gIdx) => {
                 return `

@@ -93,7 +93,8 @@ const NewGroupQuotation = ({ isDark }) => {
             infants: 0,
             pax: 0,
             amount: 0
-        }
+        },
+        hotels: []
     });
 
     useEffect(() => {
@@ -178,6 +179,56 @@ const NewGroupQuotation = ({ isDark }) => {
         }
         form.setFieldsValue(patch);
 
+        // Compute consolidated hotel summary
+        const hotelSummaryMap = {};
+        (updatedGroups || []).forEach(group => {
+            (group.hotels || []).forEach(h => {
+                if (!h.hotel_id && !h.name) return;
+                const hotelObj = hotels.find(item => item._id === h.hotel_id);
+                const hotelName = hotelObj ? hotelObj.name : (h.name || 'Manual Entry');
+                const checkInStr = h.check_in ? dayjs(h.check_in).format('YYYY-MM-DD') : 'N/A';
+                const checkOutStr = h.check_out ? dayjs(h.check_out).format('YYYY-MM-DD') : 'N/A';
+                const nights = Number(h.nights) || 0;
+                const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
+                
+                if (!hotelSummaryMap[key]) {
+                    hotelSummaryMap[key] = {
+                        key,
+                        hotelName,
+                        checkIn: h.check_in,
+                        checkOut: h.check_out,
+                        nights,
+                        Single: 0,
+                        Double: 0,
+                        Triple: 0,
+                        Quad: 0,
+                        Suites: 0,
+                        "Family Room": 0,
+                        totalRooms: 0
+                    };
+                }
+                
+                if (h.rooms && h.rooms.length > 0) {
+                    h.rooms.forEach(r => {
+                        const rType = r.room_type || 'Single';
+                        const count = Number(r.noOfRooms) || 0;
+                        if (hotelSummaryMap[key][rType] !== undefined) {
+                            hotelSummaryMap[key][rType] += count;
+                        }
+                        hotelSummaryMap[key].totalRooms += count;
+                    });
+                } else {
+                    const rType = h.room_type || 'Single';
+                    const count = Number(h.noOfRooms) || 1;
+                    if (hotelSummaryMap[key][rType] !== undefined) {
+                        hotelSummaryMap[key][rType] += count;
+                    }
+                    hotelSummaryMap[key].totalRooms += count;
+                }
+            });
+        });
+        const hotelSummaryList = Object.values(hotelSummaryMap);
+
         // Update the summary state
         setSummary({
             groups: summaryGroups,
@@ -187,7 +238,8 @@ const NewGroupQuotation = ({ isDark }) => {
                 infants: totalInfants,
                 pax: totalAdults + totalChildren + totalInfants,
                 amount: total
-            }
+            },
+            hotels: hotelSummaryList
         });
     };
 
@@ -1009,6 +1061,29 @@ const NewGroupQuotation = ({ isDark }) => {
                                 </Table.Summary.Row>
                             </Table.Summary>
                         )}
+                    />
+                </Card>
+
+                {/* Hotel Accommodation Summary */}
+                <Card title="Hotel Accommodation Summary" size="small" style={{ marginBottom: 24, backgroundColor: isDark ? '#1f1f1f' : '#ffffff' }}>
+                    <Table
+                        dataSource={summary.hotels || []}
+                        pagination={false}
+                        size="small"
+                        rowKey="key"
+                        columns={[
+                            { title: 'Hotel', dataIndex: 'hotelName' },
+                            { title: 'Nights', dataIndex: 'nights', align: 'center' },
+                            { title: 'Check-in', dataIndex: 'checkIn', render: d => d ? dayjs(d).format('DD-MM-YYYY') : 'N/A' },
+                            { title: 'Check-out', dataIndex: 'checkOut', render: d => d ? dayjs(d).format('DD-MM-YYYY') : 'N/A' },
+                            { title: 'Single', dataIndex: 'Single', align: 'center', render: val => val || '-' },
+                            { title: 'Double', dataIndex: 'Double', align: 'center', render: val => val || '-' },
+                            { title: 'Triple', dataIndex: 'Triple', align: 'center', render: val => val || '-' },
+                            { title: 'Quad', dataIndex: 'Quad', align: 'center', render: val => val || '-' },
+                            { title: 'Suites', dataIndex: 'Suites', align: 'center', render: val => val || '-' },
+                            { title: 'Family Room', dataIndex: 'Family Room', align: 'center', render: val => val || '-' },
+                            { title: 'Total Rooms', dataIndex: 'totalRooms', align: 'center', render: val => <Tag color="blue">{val}</Tag> }
+                        ]}
                     />
                 </Card>
 

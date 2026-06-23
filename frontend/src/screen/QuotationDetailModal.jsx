@@ -10,6 +10,56 @@ import { FiTrash, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 const { Title, Text } = Typography;
 
+const getHotelSummary = (groups) => {
+    const summaryMap = {};
+    (groups || []).forEach(group => {
+        (group.hotels || []).forEach(h => {
+            const hotelName = h.hotel_id?.name || h.name || 'Manual Entry';
+            const checkInStr = h.check_in ? dayjs.utc(h.check_in).format('YYYY-MM-DD') : 'N/A';
+            const checkOutStr = h.check_out ? dayjs.utc(h.check_out).format('YYYY-MM-DD') : 'N/A';
+            const nights = Number(h.nights) || 0;
+            
+            const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
+            
+            if (!summaryMap[key]) {
+                summaryMap[key] = {
+                    key,
+                    hotelName,
+                    checkIn: h.check_in,
+                    checkOut: h.check_out,
+                    nights,
+                    Single: 0,
+                    Double: 0,
+                    Triple: 0,
+                    Quad: 0,
+                    Suites: 0,
+                    "Family Room": 0,
+                    totalRooms: 0
+                };
+            }
+            
+            if (h.rooms && h.rooms.length > 0) {
+                h.rooms.forEach(r => {
+                    const rType = r.room_type || 'Single';
+                    const count = Number(r.noOfRooms) || 0;
+                    if (summaryMap[key][rType] !== undefined) {
+                        summaryMap[key][rType] += count;
+                    }
+                    summaryMap[key].totalRooms += count;
+                });
+            } else {
+                const rType = h.room_type || 'Single';
+                const count = Number(h.noOfRooms) || 1;
+                if (summaryMap[key][rType] !== undefined) {
+                    summaryMap[key][rType] += count;
+                }
+                summaryMap[key].totalRooms += count;
+            }
+        });
+    });
+    return Object.values(summaryMap);
+};
+
 const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) => {
     const navigate = useNavigate();
     const currencySymbols = { USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR' };
@@ -270,35 +320,57 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
 
                         {/* Hotel Details Table */}
                         <Title level={5} style={{ marginTop: 24, fontStyle: 'normal' }}>Accommodation</Title>
-                        <Table
-                            dataSource={data.hotels}
-                            pagination={false}
-                            size="small"
-                            rowKey="_id"
-                            columns={[
-                                { title: 'Hotel', dataIndex: 'hotel_id', render: h => h?.name || 'Manual Entry' },
-                                { 
-                                    title: 'Rooms Configuration', 
-                                    render: (_, record) => {
-                                        if (record.rooms && record.rooms.length > 0) {
-                                            return (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    {record.rooms.map((r, rIdx) => (
-                                                        <span key={r._id || rIdx}>
-                                                            {r.noOfRooms}x {r.room_type} ({r.meal_plan})
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            );
+                        {data.bookingType === 'Group' ? (
+                            <Table
+                                dataSource={getHotelSummary(data.groups)}
+                                pagination={false}
+                                size="small"
+                                rowKey="key"
+                                columns={[
+                                    { title: 'Hotel', dataIndex: 'hotelName' },
+                                    { title: 'Nights', dataIndex: 'nights', align: 'center' },
+                                    { title: 'Check-in', dataIndex: 'checkIn', render: d => d ? dayjs.utc(d).format('DD-MM-YYYY') : 'N/A' },
+                                    { title: 'Check-out', dataIndex: 'checkOut', render: d => d ? dayjs.utc(d).format('DD-MM-YYYY') : 'N/A' },
+                                    { title: 'Single', dataIndex: 'Single', align: 'center', render: val => val || '-' },
+                                    { title: 'Double', dataIndex: 'Double', align: 'center', render: val => val || '-' },
+                                    { title: 'Triple', dataIndex: 'Triple', align: 'center', render: val => val || '-' },
+                                    { title: 'Quad', dataIndex: 'Quad', align: 'center', render: val => val || '-' },
+                                    { title: 'Suites', dataIndex: 'Suites', align: 'center', render: val => val || '-' },
+                                    { title: 'Family Room', dataIndex: 'Family Room', align: 'center', render: val => val || '-' },
+                                    { title: 'Total Rooms', dataIndex: 'totalRooms', align: 'center', render: val => <Tag color="blue">{val}</Tag> }
+                                ]}
+                            />
+                        ) : (
+                            <Table
+                                dataSource={data.hotels}
+                                pagination={false}
+                                size="small"
+                                rowKey="_id"
+                                columns={[
+                                    { title: 'Hotel', dataIndex: 'hotel_id', render: h => h?.name || 'Manual Entry' },
+                                    { 
+                                        title: 'Rooms Configuration', 
+                                        render: (_, record) => {
+                                            if (record.rooms && record.rooms.length > 0) {
+                                                return (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                        {record.rooms.map((r, rIdx) => (
+                                                            <span key={r._id || rIdx}>
+                                                                {r.noOfRooms}x {r.room_type} ({r.meal_plan})
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                            return `${record.noOfRooms || 1}x ${record.room_type || 'N/A'} (${record.meal_plan || 'N/A'})`;
                                         }
-                                        return `${record.noOfRooms || 1}x ${record.room_type || 'N/A'} (${record.meal_plan || 'N/A'})`;
-                                    }
-                                },
-                                { title: 'Nights', dataIndex: 'nights', align: 'center' },
-                                { title: 'Check-in', dataIndex: 'check_in', render: d => dayjs.utc(d).format('DD-MM-YYYY') },
-                                { title: 'Check-out', dataIndex: 'check_out', render: d => dayjs.utc(d).format('DD-MM-YYYY') },
-                            ]}
-                        />
+                                    },
+                                    { title: 'Nights', dataIndex: 'nights', align: 'center' },
+                                    { title: 'Check-in', dataIndex: 'check_in', render: d => dayjs.utc(d).format('DD-MM-YYYY') },
+                                    { title: 'Check-out', dataIndex: 'check_out', render: d => dayjs.utc(d).format('DD-MM-YYYY') },
+                                ]}
+                            />
+                        )}
 
                         {data.bookingType === 'Group' && data.groups && data.groups.length > 0 && (
                             <div style={{ marginTop: 24 }}>

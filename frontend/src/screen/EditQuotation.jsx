@@ -24,7 +24,8 @@ const EditQuotation = ({ isDark }) => {
 
   const [summary, setSummary] = useState({
     groups: [],
-    totals: { adults: 0, children: 0, infants: 0, pax: 0, amount: 0 }
+    totals: { adults: 0, children: 0, infants: 0, pax: 0, amount: 0 },
+    hotels: []
   });
 
   useEffect(() => {
@@ -174,6 +175,56 @@ const EditQuotation = ({ isDark }) => {
     }
     form.setFieldsValue(patch);
 
+    // Compute consolidated hotel summary
+    const hotelSummaryMap = {};
+    (updatedGroups || []).forEach(group => {
+      (group.hotels || []).forEach(h => {
+        if (!h.hotel_id && !h.name) return;
+        const hotelObj = hotels.find(item => item._id === h.hotel_id);
+        const hotelName = hotelObj ? hotelObj.name : (h.name || 'Manual Entry');
+        const checkInStr = h.check_in ? dayjs(h.check_in).format('YYYY-MM-DD') : 'N/A';
+        const checkOutStr = h.check_out ? dayjs(h.check_out).format('YYYY-MM-DD') : 'N/A';
+        const nights = Number(h.nights) || 0;
+        const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
+        
+        if (!hotelSummaryMap[key]) {
+          hotelSummaryMap[key] = {
+            key,
+            hotelName,
+            checkIn: h.check_in,
+            checkOut: h.check_out,
+            nights,
+            Single: 0,
+            Double: 0,
+            Triple: 0,
+            Quad: 0,
+            Suites: 0,
+            "Family Room": 0,
+            totalRooms: 0
+          };
+        }
+        
+        if (h.rooms && h.rooms.length > 0) {
+          h.rooms.forEach(r => {
+            const rType = r.room_type || 'Single';
+            const count = Number(r.noOfRooms) || 0;
+            if (hotelSummaryMap[key][rType] !== undefined) {
+              hotelSummaryMap[key][rType] += count;
+            }
+            hotelSummaryMap[key].totalRooms += count;
+          });
+        } else {
+          const rType = h.room_type || 'Single';
+          const count = Number(h.noOfRooms) || 1;
+          if (hotelSummaryMap[key][rType] !== undefined) {
+            hotelSummaryMap[key][rType] += count;
+          }
+          hotelSummaryMap[key].totalRooms += count;
+        }
+      });
+    });
+    const hotelSummaryList = Object.values(hotelSummaryMap);
+
     // Update the summary state
     setSummary({
       groups: summaryGroups,
@@ -183,7 +234,8 @@ const EditQuotation = ({ isDark }) => {
         infants: totalInfants,
         pax: totalAdults + totalChildren + totalInfants,
         amount: total
-      }
+      },
+      hotels: hotelSummaryList
     });
   };
 
@@ -315,6 +367,7 @@ const EditQuotation = ({ isDark }) => {
               let totalInfants = 0;
               let total = 0;
               const summaryGroups = [];
+              const hotelSummaryMap = {};
 
               formattedGroups.forEach((group, index) => {
                 const adults = Number(group.adults) || 0;
@@ -337,7 +390,54 @@ const EditQuotation = ({ isDark }) => {
                   pax: adults + children + infants,
                   amount: groupAmount
                 });
+
+                (group.hotels || []).forEach(h => {
+                  if (!h.hotel_id && !h.name) return;
+                  const hotelObj = hotels.find(item => item._id === h.hotel_id);
+                  const hotelName = hotelObj ? hotelObj.name : (h.name || 'Manual Entry');
+                  const checkInStr = h.check_in ? dayjs(h.check_in).format('YYYY-MM-DD') : 'N/A';
+                  const checkOutStr = h.check_out ? dayjs(h.check_out).format('YYYY-MM-DD') : 'N/A';
+                  const nights = Number(h.nights) || 0;
+                  const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
+                  
+                  if (!hotelSummaryMap[key]) {
+                    hotelSummaryMap[key] = {
+                      key,
+                      hotelName,
+                      checkIn: h.check_in,
+                      checkOut: h.check_out,
+                      nights,
+                      Single: 0,
+                      Double: 0,
+                      Triple: 0,
+                      Quad: 0,
+                      Suites: 0,
+                      "Family Room": 0,
+                      totalRooms: 0
+                    };
+                  }
+                  
+                  if (h.rooms && h.rooms.length > 0) {
+                    h.rooms.forEach(r => {
+                      const rType = r.room_type || 'Single';
+                      const count = Number(r.noOfRooms) || 0;
+                      if (hotelSummaryMap[key][rType] !== undefined) {
+                        hotelSummaryMap[key][rType] += count;
+                      }
+                      hotelSummaryMap[key].totalRooms += count;
+                    });
+                  } else {
+                    const rType = h.room_type || 'Single';
+                    const count = Number(h.noOfRooms) || 1;
+                    if (hotelSummaryMap[key][rType] !== undefined) {
+                      hotelSummaryMap[key][rType] += count;
+                    }
+                    hotelSummaryMap[key].totalRooms += count;
+                  }
+                });
               });
+
+              const hotelSummaryList = Object.values(hotelSummaryMap);
 
               setSummary({
                 groups: summaryGroups,
@@ -347,7 +447,8 @@ const EditQuotation = ({ isDark }) => {
                   infants: totalInfants,
                   pax: totalAdults + totalChildren + totalInfants,
                   amount: total
-                }
+                },
+                hotels: hotelSummaryList
               });
             }
           } else {
@@ -1687,78 +1788,103 @@ const EditQuotation = ({ isDark }) => {
         </Card>
 
         {bookingType === 'Group' && (
-          /* Quotation Summary & Totals */
-          <Card title="Quotation Summary & Totals" size="small" style={{ marginBottom: 24, backgroundColor: isDark ? '#1f1f1f' : '#ffffff' }}>
-            <Table
-              dataSource={summary.groups}
-              columns={[
-                {
-                  title: 'Group / Leader',
-                  dataIndex: 'leaderName',
-                  key: 'leaderName',
-                  render: (text, record) => (
-                    <span style={{ fontWeight: 'bold' }}>
-                      {record.index ? `#${record.index} - ` : ''}{text || 'N/A'}
-                    </span>
-                  )
-                },
-                {
-                  title: 'Adults',
-                  dataIndex: 'adults',
-                  key: 'adults',
-                  align: 'center'
-                },
-                {
-                  title: 'Children',
-                  dataIndex: 'childrenCount',
-                  key: 'childrenCount',
-                  align: 'center'
-                },
-                {
-                  title: 'Infants',
-                  dataIndex: 'infants',
-                  key: 'infants',
-                  align: 'center'
-                },
-                {
-                  title: 'Total Passengers (PAX)',
-                  dataIndex: 'pax',
-                  key: 'pax',
-                  align: 'center',
-                  render: (val) => <Tag color="blue">{val}</Tag>
-                },
-                {
-                  title: 'Subtotal Amount',
-                  dataIndex: 'amount',
-                  key: 'amount',
-                  align: 'right',
-                  render: (val) => <span style={{ fontWeight: 'bold', color: '#16a34a' }}>{getSymbol(selectedCurrency)}{val.toFixed(2)}</span>
-                }
-              ]}
-              pagination={false}
-              rowKey="index"
-              summary={() => (
-                <Table.Summary fixed>
-                  <Table.Summary.Row style={{ background: isDark ? '#262626' : '#fafafa', fontWeight: 'bold' }}>
-                    <Table.Summary.Cell index={0}>Overall Totals</Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} align="center">{summary.totals.adults}</Table.Summary.Cell>
-                    <Table.Summary.Cell index={2} align="center">{summary.totals.children}</Table.Summary.Cell>
-                    <Table.Summary.Cell index={3} align="center">{summary.totals.infants}</Table.Summary.Cell>
-                    <Table.Summary.Cell index={4} align="center">
-                      <Tag color="geekblue" style={{ fontSize: '13px', padding: '2px 8px' }}>
-                        {summary.totals.pax} PAX
-                      </Tag>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={5} align="right">
-                      <span style={{ color: '#16a34a', fontSize: '15px' }}>
-                        {getSymbol(selectedCurrency)}{summary.totals.amount.toFixed(2)}
+          <>
+            {/* Quotation Summary & Totals */}
+            <Card title="Quotation Summary & Totals" size="small" style={{ marginBottom: 24, backgroundColor: isDark ? '#1f1f1f' : '#ffffff' }}>
+              <Table
+                dataSource={summary.groups}
+                columns={[
+                  {
+                    title: 'Group / Leader',
+                    dataIndex: 'leaderName',
+                    key: 'leaderName',
+                    render: (text, record) => (
+                      <span style={{ fontWeight: 'bold' }}>
+                        {record.index ? `#${record.index} - ` : ''}{text || 'N/A'}
                       </span>
-                    </Table.Summary.Cell>
-                  </Table.Summary.Row>
-                </Table.Summary>
-              )}
-            />
-          </Card>
+                    )
+                  },
+                  {
+                    title: 'Adults',
+                    dataIndex: 'adults',
+                    key: 'adults',
+                    align: 'center'
+                  },
+                  {
+                    title: 'Children',
+                    dataIndex: 'childrenCount',
+                    key: 'childrenCount',
+                    align: 'center'
+                  },
+                  {
+                    title: 'Infants',
+                    dataIndex: 'infants',
+                    key: 'infants',
+                    align: 'center'
+                  },
+                  {
+                    title: 'Total Passengers (PAX)',
+                    dataIndex: 'pax',
+                    key: 'pax',
+                    align: 'center',
+                    render: (val) => <Tag color="blue">{val}</Tag>
+                  },
+                  {
+                    title: 'Subtotal Amount',
+                    dataIndex: 'amount',
+                    key: 'amount',
+                    align: 'right',
+                    render: (val) => <span style={{ fontWeight: 'bold', color: '#16a34a' }}>{getSymbol(selectedCurrency)}{val.toFixed(2)}</span>
+                  }
+                ]}
+                pagination={false}
+                rowKey="index"
+                summary={() => (
+                  <Table.Summary fixed>
+                    <Table.Summary.Row style={{ background: isDark ? '#262626' : '#fafafa', fontWeight: 'bold' }}>
+                      <Table.Summary.Cell index={0}>Overall Totals</Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="center">{summary.totals.adults}</Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="center">{summary.totals.children}</Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="center">{summary.totals.infants}</Table.Summary.Cell>
+                      <Table.Summary.Cell index={4} align="center">
+                        <Tag color="geekblue" style={{ fontSize: '13px', padding: '2px 8px' }}>
+                          {summary.totals.pax} PAX
+                        </Tag>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={5} align="right">
+                        <span style={{ color: '#16a34a', fontSize: '15px' }}>
+                          {getSymbol(selectedCurrency)}{summary.totals.amount.toFixed(2)}
+                        </span>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  </Table.Summary>
+                )}
+              />
+            </Card>
+
+            {/* Hotel Accommodation Summary */}
+            <Card title="Hotel Accommodation Summary" size="small" style={{ marginBottom: 24, backgroundColor: isDark ? '#1f1f1f' : '#ffffff' }}>
+              <Table
+                dataSource={summary.hotels || []}
+                pagination={false}
+                size="small"
+                rowKey="key"
+                columns={[
+                  { title: 'Hotel', dataIndex: 'hotelName' },
+                  { title: 'Nights', dataIndex: 'nights', align: 'center' },
+                  { title: 'Check-in', dataIndex: 'checkIn', render: d => d ? dayjs(d).format('DD-MM-YYYY') : 'N/A' },
+                  { title: 'Check-out', dataIndex: 'checkOut', render: d => d ? dayjs(d).format('DD-MM-YYYY') : 'N/A' },
+                  { title: 'Single', dataIndex: 'Single', align: 'center', render: val => val || '-' },
+                  { title: 'Double', dataIndex: 'Double', align: 'center', render: val => val || '-' },
+                  { title: 'Triple', dataIndex: 'Triple', align: 'center', render: val => val || '-' },
+                  { title: 'Quad', dataIndex: 'Quad', align: 'center', render: val => val || '-' },
+                  { title: 'Suites', dataIndex: 'Suites', align: 'center', render: val => val || '-' },
+                  { title: 'Family Room', dataIndex: 'Family Room', align: 'center', render: val => val || '-' },
+                  { title: 'Total Rooms', dataIndex: 'totalRooms', align: 'center', render: val => <Tag color="blue">{val}</Tag> }
+                ]}
+              />
+            </Card>
+          </>
         )}
 
         {/* Additional Information */}
