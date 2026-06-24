@@ -48,7 +48,8 @@ const GroupSchema = new mongoose.Schema({
     adults: { type: Number, default: 0 },
     children: { type: Number, default: 0 },
     infants: { type: Number, default: 0 },
-    hotels: [HotelBookingSchema]
+    hotels: [HotelBookingSchema],
+    extra_services: { type: [String], default: [] }
 });
 
 const QuotationSchema = new mongoose.Schema({

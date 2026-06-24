@@ -13,6 +13,8 @@ const { Title, Text } = Typography;
 const getHotelSummary = (groups) => {
     const summaryMap = {};
     (groups || []).forEach(group => {
+        const extraServices = group.extra_services || [];
+        if (!extraServices.includes('Hotels')) return;
         (group.hotels || []).forEach(h => {
             const hotelName = h.hotel_id?.name || h.name || 'Manual Entry';
             const checkInStr = h.check_in ? dayjs.utc(h.check_in).format('YYYY-MM-DD') : 'N/A';
@@ -393,18 +395,29 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                                                 ({group.adults || 0} Adults, {group.children || 0} Children, {group.infants || 0} Infants)
                                             </Text>
                                         </Descriptions.Item>
-                                        <Descriptions.Item label="Accommodations Stays" span={2}>
-                                            {(group.hotels || []).map((h, hIdx) => {
-                                                const hotelName = h.hotel_id?.name || h.name || 'Manual Entry';
-                                                return (
-                                                    <div key={h._id || hIdx} style={{ marginBottom: 8, borderBottom: hIdx < (group.hotels.length - 1) ? '1px dashed #f0f0f0' : 'none', paddingBottom: 8 }}>
-                                                        <strong>{hotelName}</strong> ({h.nights} Nights, {h.check_in ? dayjs.utc(h.check_in).format('DD-MM-YYYY') : 'N/A'} to {h.check_out ? dayjs.utc(h.check_out).format('DD-MM-YYYY') : 'N/A'})
-                                                        <br />
-                                                        Rooms: {(h.rooms || []).map((r, rIdx) => `${r.noOfRooms}x ${r.room_type || 'N/A'} (${r.meal_plan || 'N/A'})`).join(', ') || `${h.noOfRooms || 1}x ${h.room_type || 'N/A'} (${h.meal_plan || 'N/A'})`}
-                                                    </div>
-                                                );
-                                            })}
+                                        <Descriptions.Item label="Included Services" span={2}>
+                                            {group.extra_services && group.extra_services.length > 0 ? (
+                                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                    {group.extra_services.map(service => (
+                                                        <Tag color="cyan" key={service}>{service}</Tag>
+                                                    ))}
+                                                </div>
+                                            ) : 'None'}
                                         </Descriptions.Item>
+                                        {group.extra_services && group.extra_services.includes('Hotels') && (
+                                            <Descriptions.Item label="Accommodations Stays" span={2}>
+                                                {(group.hotels || []).map((h, hIdx) => {
+                                                    const hotelName = h.hotel_id?.name || h.name || 'Manual Entry';
+                                                    return (
+                                                        <div key={h._id || hIdx} style={{ marginBottom: 8, borderBottom: hIdx < (group.hotels.length - 1) ? '1px dashed #f0f0f0' : 'none', paddingBottom: 8 }}>
+                                                            <strong>{hotelName}</strong> ({h.nights} Nights, {h.check_in ? dayjs.utc(h.check_in).format('DD-MM-YYYY') : 'N/A'} to {h.check_out ? dayjs.utc(h.check_out).format('DD-MM-YYYY') : 'N/A'})
+                                                            <br />
+                                                            Rooms: {(h.rooms || []).map((r, rIdx) => `${r.noOfRooms}x ${r.room_type || 'N/A'} (${r.meal_plan || 'N/A'})`).join(', ') || `${h.noOfRooms || 1}x ${h.room_type || 'N/A'} (${h.meal_plan || 'N/A'})`}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </Descriptions.Item>
+                                        )}
                                     </Descriptions>
                                 ))}
                             </div>

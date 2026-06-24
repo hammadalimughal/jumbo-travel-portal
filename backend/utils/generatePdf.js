@@ -23,6 +23,8 @@ const createPdfHtml = (data) => {
     const hotelSummaryMap = {};
     if (data.bookingType === 'Group' && data.groups) {
         data.groups.forEach(group => {
+            const extraServices = group.extra_services || [];
+            if (!extraServices.includes('Hotels')) return;
             (group.hotels || []).forEach(h => {
                 if (!h.name) return;
                 const hotelName = h.name;
@@ -216,7 +218,11 @@ const createPdfHtml = (data) => {
                         ${grp.customer_phone ? `<p><strong>Phone:</strong> ${grp.customer_phone}</p>` : ''}
                         <p><strong>Passengers:</strong> ${grp.passengers_names || 'N/A'}</p>
                         <p><strong>Count:</strong> ${grp.adults || 0} Adult(s), ${grp.children || 0} Child(ren), ${grp.infants || 0} Infant(s)</p>
+                        ${grp.extra_services && grp.extra_services.length > 0 ? `
+                        <p><strong>Services Included:</strong> ${grp.extra_services.join(', ')}</p>
+                        ` : ''}
                     </div>
+                    ${grp.extra_services && grp.extra_services.includes('Hotels') ? `
                     <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px;">Accommodation Details:</div>
                     <table>
                         <thead>
@@ -253,6 +259,7 @@ const createPdfHtml = (data) => {
                             }).join('')}
                         </tbody>
                     </table>
+                    ` : ''}
                 </div>
                 `;
             }).join('')}
