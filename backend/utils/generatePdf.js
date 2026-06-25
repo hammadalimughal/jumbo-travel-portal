@@ -222,7 +222,6 @@ const createPdfHtml = (data) => {
                         <p><strong>Services Included:</strong> ${grp.extra_services.join(', ')}</p>
                         ` : ''}
                     </div>
-                    ${grp.extra_services && grp.extra_services.includes('Hotels') ? `
                     <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px;">Accommodation Details:</div>
                     <table>
                         <thead>
@@ -238,28 +237,28 @@ const createPdfHtml = (data) => {
                         </thead>
                         <tbody>
                             ${(grp.hotels || []).map((h) => {
-                                const noOfRoomsCol = h.rooms && h.rooms.length > 0
-                                    ? h.rooms.map(r => r.noOfRooms).join('<br>')
-                                    : h.noOfRooms || '';
-                                const roomTypeCol = h.rooms && h.rooms.length > 0
-                                    ? h.rooms.map(r => r.room_type).join('<br>')
-                                    : h.room_type || '';
-                                const mealPlanCol = h.rooms && h.rooms.length > 0
-                                    ? h.rooms.map(r => r.meal_plan).join('<br>')
-                                    : h.meal_plan || '';
+                                const isHotelsChecked = grp.extra_services && grp.extra_services.includes('Hotels');
+                                const noOfRoomsCol = isHotelsChecked
+                                    ? (h.rooms && h.rooms.length > 0 ? h.rooms.map(r => r.noOfRooms).join('<br>') : h.noOfRooms || '-')
+                                    : '-';
+                                const roomTypeCol = isHotelsChecked
+                                    ? (h.rooms && h.rooms.length > 0 ? h.rooms.map(r => r.room_type).join('<br>') : h.room_type || 'Not Included')
+                                    : 'Not Included';
+                                const mealPlanCol = isHotelsChecked
+                                    ? (h.rooms && h.rooms.length > 0 ? h.rooms.map(r => r.meal_plan).join('<br>') : h.meal_plan || '-')
+                                    : '-';
                                 return `<tr>
                                     <td>${h.name || 'Manual Entry'}</td>
                                     <td>${noOfRoomsCol}</td>
                                     <td>${roomTypeCol}</td>
-                                    <td>${refactorDate(h.check_in)}</td>
-                                    <td>${refactorDate(h.check_out)}</td>
+                                    <td>${h.check_in ? refactorDate(h.check_in) : 'N/A'}</td>
+                                    <td>${h.check_out ? refactorDate(h.check_out) : 'N/A'}</td>
                                     <td>${mealPlanCol}</td>
-                                    <td>${h.nights}</td>
+                                    <td>${h.nights || 0}</td>
                                 </tr>`;
                             }).join('')}
                         </tbody>
                     </table>
-                    ` : ''}
                 </div>
                 `;
             }).join('')}

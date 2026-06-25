@@ -247,11 +247,12 @@ const NewQuotation = ({ isDark }) => {
 
         // Parse and set flights
         if (flights && flights.length > 0) {
+          debugger
           const parsedFlights = flights.map((flight, index) => ({
             ...flight,
             id: Date.now() + index,
-            from: flight.origin?.city || flight.origin?.iata || '',
-            to: flight.destination?.city || flight.destination?.iata || '',
+            from: `${flight.origin?.city} (${flight.origin?.name})` || flight.origin?.iata || '',
+            to: `${flight.destination?.city} (${flight.destination?.name})` || flight.destination?.iata || '',
             // Use .utc(true) to parse the string and keep the time exactly as is
             date: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
             departureDateTime: flight.departureISO ? dayjs.utc(flight.departureISO) : null,

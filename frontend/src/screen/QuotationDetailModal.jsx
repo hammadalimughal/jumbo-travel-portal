@@ -404,20 +404,24 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                                                 </div>
                                             ) : 'None'}
                                         </Descriptions.Item>
-                                        {group.extra_services && group.extra_services.includes('Hotels') && (
-                                            <Descriptions.Item label="Accommodations Stays" span={2}>
-                                                {(group.hotels || []).map((h, hIdx) => {
-                                                    const hotelName = h.hotel_id?.name || h.name || 'Manual Entry';
-                                                    return (
-                                                        <div key={h._id || hIdx} style={{ marginBottom: 8, borderBottom: hIdx < (group.hotels.length - 1) ? '1px dashed #f0f0f0' : 'none', paddingBottom: 8 }}>
-                                                            <strong>{hotelName}</strong> ({h.nights} Nights, {h.check_in ? dayjs.utc(h.check_in).format('DD-MM-YYYY') : 'N/A'} to {h.check_out ? dayjs.utc(h.check_out).format('DD-MM-YYYY') : 'N/A'})
-                                                            <br />
-                                                            Rooms: {(h.rooms || []).map((r, rIdx) => `${r.noOfRooms}x ${r.room_type || 'N/A'} (${r.meal_plan || 'N/A'})`).join(', ') || `${h.noOfRooms || 1}x ${h.room_type || 'N/A'} (${h.meal_plan || 'N/A'})`}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </Descriptions.Item>
-                                        )}
+                                        <Descriptions.Item label="Accommodations Stays" span={2}>
+                                            {(group.hotels || []).map((h, hIdx) => {
+                                                const hotelName = h.hotel_id?.name || h.name || 'Manual Entry';
+                                                const isHotelsChecked = group.extra_services && group.extra_services.includes('Hotels');
+                                                const roomsText = isHotelsChecked 
+                                                    ? (h.rooms && h.rooms.length > 0 
+                                                        ? h.rooms.map(r => `${r.noOfRooms}x ${r.room_type || 'N/A'} (${r.meal_plan || 'N/A'})`).join(', ') 
+                                                        : `${h.noOfRooms || 1}x ${h.room_type || 'N/A'} (${h.meal_plan || 'N/A'})`)
+                                                    : 'None (Not Included)';
+                                                return (
+                                                    <div key={h._id || hIdx} style={{ marginBottom: 8, borderBottom: hIdx < (group.hotels.length - 1) ? '1px dashed #f0f0f0' : 'none', paddingBottom: 8 }}>
+                                                        <strong>{hotelName}</strong> ({h.nights} Nights, {h.check_in ? dayjs.utc(h.check_in).format('DD-MM-YYYY') : 'N/A'} to {h.check_out ? dayjs.utc(h.check_out).format('DD-MM-YYYY') : 'N/A'})
+                                                        <br />
+                                                        Rooms: {roomsText}
+                                                    </div>
+                                                );
+                                            })}
+                                        </Descriptions.Item>
                                     </Descriptions>
                                 ))}
                             </div>

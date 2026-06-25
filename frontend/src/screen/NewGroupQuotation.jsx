@@ -126,6 +126,27 @@ const NewGroupQuotation = ({ isDark }) => {
         let totalInfants = 0;
         const summaryGroups = [];
 
+
+
+        let topHotelsUpdated = false;
+        const topHotels = allValues.hotels || [];
+        const updatedTopHotels = topHotels.map((hotel) => {
+            if (hotel.check_in && hotel.check_out) {
+                const start = dayjs(hotel.check_in);
+                const end = dayjs(hotel.check_out);
+                const diff = end.diff(start, 'day');
+                const expectedNights = diff > 0 ? diff : 0;
+                if (hotel.nights !== expectedNights) {
+                    topHotelsUpdated = true;
+                    return { ...hotel, nights: expectedNights };
+                }
+            }
+            return hotel;
+        });
+        if (topHotelsUpdated) {
+            form.setFieldsValue({ hotels: updatedTopHotels });
+        }
+
         const updatedGroups = (allValues.groups || []).map((group, index) => {
             const adults = Number(group.adults) || 0;
             const children = Number(group.children) || 0;
@@ -148,58 +169,36 @@ const NewGroupQuotation = ({ isDark }) => {
                 amount: groupAmount
             });
 
-            let hotelsUpdated = false;
-            const updatedHotels = (group.hotels || []).map((hotel) => {
-                if (hotel.check_in && hotel.check_out) {
-                    const start = dayjs(hotel.check_in);
-                    const end = dayjs(hotel.check_out);
-                    const diff = end.diff(start, 'day');
-                    const expectedNights = diff > 0 ? diff : 0;
-                    if (hotel.nights !== expectedNights) {
-                        hotelsUpdated = true;
-                        return { ...hotel, nights: expectedNights };
-                    }
-                }
-                return hotel;
-            });
-
-            if (hotelsUpdated) {
-                groupsUpdated = true;
-                return {
-                    ...group,
-                    hotels: updatedHotels
-                };
-            }
             return group;
         });
 
         const patch = { totalPrice: total };
-        if (groupsUpdated) {
-            patch.groups = updatedGroups;
-        }
         form.setFieldsValue(patch);
 
         // Compute consolidated hotel summary
         const hotelSummaryMap = {};
+        const currentTopHotels = form.getFieldValue('hotels') || [];
         (updatedGroups || []).forEach(group => {
             const extraServices = group.extra_services || [];
             if (!extraServices.includes('Hotels')) return;
 
-            (group.hotels || []).forEach(h => {
-                if (!h.hotel_id && !h.name) return;
-                const hotelObj = hotels.find(item => item._id === h.hotel_id);
-                const hotelName = hotelObj ? hotelObj.name : (h.name || 'Manual Entry');
-                const checkInStr = h.check_in ? dayjs(h.check_in).format('YYYY-MM-DD') : 'N/A';
-                const checkOutStr = h.check_out ? dayjs(h.check_out).format('YYYY-MM-DD') : 'N/A';
-                const nights = Number(h.nights) || 0;
+            (group.hotels || []).forEach((h, hIdx) => {
+                const topHotel = currentTopHotels[hIdx];
+                if (!topHotel || (!topHotel.hotel_id && !topHotel.name)) return;
+
+                const hotelObj = hotels.find(item => item._id === topHotel.hotel_id);
+                const hotelName = hotelObj ? hotelObj.name : (topHotel.name || 'Manual Entry');
+                const checkInStr = topHotel.check_in ? dayjs(topHotel.check_in).format('YYYY-MM-DD') : 'N/A';
+                const checkOutStr = topHotel.check_out ? dayjs(topHotel.check_out).format('YYYY-MM-DD') : 'N/A';
+                const nights = Number(topHotel.nights) || 0;
                 const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
-                
+
                 if (!hotelSummaryMap[key]) {
                     hotelSummaryMap[key] = {
                         key,
                         hotelName,
-                        checkIn: h.check_in,
-                        checkOut: h.check_out,
+                        checkIn: topHotel.check_in,
+                        checkOut: topHotel.check_out,
                         nights,
                         Single: 0,
                         Double: 0,
@@ -210,7 +209,7 @@ const NewGroupQuotation = ({ isDark }) => {
                         totalRooms: 0
                     };
                 }
-                
+
                 if (h.rooms && h.rooms.length > 0) {
                     h.rooms.forEach(r => {
                         const rType = r.room_type || 'Single';
@@ -341,22 +340,37 @@ const NewGroupQuotation = ({ isDark }) => {
     const handleSubmit = async (values) => {
         setLoading(true);
         try {
+            const formattedTopHotels = (values.hotels || []).map(h => {
+                const hotelObj = hotels.find(item => item._id === h.hotel_id);
+                return {
+                    hotel_id: h.hotel_id,
+                    name: hotelObj ? hotelObj.name : (h.name || 'Manual Entry'),
+                    check_in: h.check_in ? h.check_in.format('YYYY-MM-DD') : null,
+                    check_out: h.check_out ? h.check_out.format('YYYY-MM-DD') : null,
+                    nights: h.nights,
+                    rooms: []
+                };
+            });
+
             const formattedGroups = (values.groups || []).map(group => {
-                const formattedHotels = (group.hotels || []).map(h => {
-                    const firstRoom = h.rooms?.[0] || {};
+                const extraServices = group.extra_services || [];
+                const isHotelsChecked = extraServices.includes('Hotels');
+                const formattedHotels = (values.hotels || []).map((topHotel, hIdx) => {
+                    const groupHotel = group.hotels?.[hIdx] || {};
+                    const firstRoom = isHotelsChecked ? (groupHotel.rooms?.[0] || {}) : {};
                     return {
-                        hotel_id: h.hotel_id,
-                        check_in: h.check_in ? h.check_in.format('YYYY-MM-DD') : null,
-                        check_out: h.check_out ? h.check_out.format('YYYY-MM-DD') : null,
-                        nights: h.nights,
-                        rooms: (h.rooms || []).map(r => ({
+                        hotel_id: topHotel.hotel_id,
+                        check_in: topHotel.check_in ? topHotel.check_in.format('YYYY-MM-DD') : null,
+                        check_out: topHotel.check_out ? topHotel.check_out.format('YYYY-MM-DD') : null,
+                        nights: topHotel.nights,
+                        rooms: isHotelsChecked ? (groupHotel.rooms || []).map(r => ({
                             room_type: r.room_type,
                             noOfRooms: r.noOfRooms,
                             meal_plan: r.meal_plan
-                        })),
-                        room_type: firstRoom.room_type,
-                        noOfRooms: firstRoom.noOfRooms || 1,
-                        meal_plan: firstRoom.meal_plan
+                        })) : [],
+                        room_type: isHotelsChecked ? firstRoom.room_type : undefined,
+                        noOfRooms: isHotelsChecked ? (firstRoom.noOfRooms || 0) : 0,
+                        meal_plan: isHotelsChecked ? firstRoom.meal_plan : undefined
                     };
                 });
                 return {
@@ -391,7 +405,7 @@ const NewGroupQuotation = ({ isDark }) => {
                 total_rooms_required: 0,
                 rooms_booked: 0,
                 remaining_rooms: 0,
-                hotels: formattedGroups[0]?.hotels || [],
+                hotels: formattedTopHotels,
                 flights: flights.map((f) => ({
                     ...f,
                     date: f.date ? f.date.format('YYYY-MM-DD') : null,
@@ -598,6 +612,109 @@ const NewGroupQuotation = ({ isDark }) => {
                     </Button>
                 </Card>
 
+                {/* Accommodation Stays (All Groups) */}
+                <Card style={cardStyle} title="Accommodation Stays (All Groups)" size="small">
+                    <Form.List name="hotels" initialValue={[{}]}>
+                        {(hotelFields, { add: addHotel, remove: removeHotel }) => (
+                            <div>
+                                {hotelFields.map(({ key: hKey, name: hName, ...restHField }) => (
+                                    <Card
+                                        key={hKey}
+                                        style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
+                                        extra={
+                                            <Popconfirm
+                                                title="Remove Hotel Stay"
+                                                description="Are you sure you want to remove this hotel stay?"
+                                                onConfirm={() => removeHotel(hName)}
+                                                okText="Yes"
+                                                cancelText="No"
+                                            >
+                                                <Button
+                                                    type="text"
+                                                    danger
+                                                    icon={<DeleteOutlined />}
+                                                />
+                                            </Popconfirm>
+                                        }
+                                    >
+                                        <Row gutter={[16, 16]}>
+                                            <Col xs={24} sm={12} md={6}>
+                                                <Form.Item
+                                                    {...restHField}
+                                                    label="Hotel"
+                                                    name={[hName, 'hotel_id']}
+                                                    style={{ marginBottom: 0 }}
+                                                    rules={[{ required: true, message: 'Please select a hotel' }]}
+                                                >
+                                                    <Select
+                                                        showSearch
+                                                        placeholder="-- Select Hotel --"
+                                                        optionFilterProp="label"
+                                                        filterOption={(input, option) => {
+                                                            const term = (input || '').toLowerCase();
+                                                            const labelMatches = (option?.label || '').toLowerCase().includes(term);
+                                                            const locationMatches = (option?.location || '').toLowerCase().includes(term);
+                                                            return labelMatches || locationMatches;
+                                                        }}
+                                                        options={hotelOptions}
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={6}>
+                                                <Form.Item
+                                                    {...restHField}
+                                                    label="Check-in"
+                                                    name={[hName, 'check_in']}
+                                                    style={{ marginBottom: 0 }}
+                                                    rules={[{ required: true, message: 'Check-in is required' }]}
+                                                >
+                                                    <DatePicker
+                                                        format="DD-MM-YYYY"
+                                                        style={{ width: '100%' }}
+                                                        disabledDate={disabledCheckIn}
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={6}>
+                                                <Form.Item
+                                                    {...restHField}
+                                                    label="Check-out"
+                                                    name={[hName, 'check_out']}
+                                                    style={{ marginBottom: 0 }}
+                                                    rules={[{ required: true, message: 'Check-out is required' }]}
+                                                >
+                                                    <DatePicker
+                                                        format="DD-MM-YYYY"
+                                                        style={{ width: '100%' }}
+                                                    />
+                                                </Form.Item>
+                                            </Col>
+                                            <Col xs={24} sm={12} md={6}>
+                                                <Form.Item
+                                                    {...restHField}
+                                                    label="Nights"
+                                                    name={[hName, 'nights']}
+                                                    style={{ marginBottom: 0 }}
+                                                >
+                                                    <InputNumber min={0} style={{ width: '100%' }} readOnly />
+                                                </Form.Item>
+                                            </Col>
+                                        </Row>
+                                    </Card>
+                                ))}
+                                <Button
+                                    type="dashed"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => addHotel()}
+                                    block
+                                >
+                                    Add Hotel Stay
+                                </Button>
+                            </div>
+                        )}
+                    </Form.List>
+                </Card>
+
                 {/* Groups Form List */}
                 <Form.List name="groups" initialValue={[{}]}>
                     {(fields, { add, remove }) => (
@@ -739,204 +856,133 @@ const NewGroupQuotation = ({ isDark }) => {
                                         </Row>
                                     </Card>
 
-                                    {/* Accommodation Stays for Group */}
-                                    <Form.Item noStyle dependencies={[['groups', name, 'extra_services']]}>
+                                    {/* Accommodation Room Configurations for Group */}
+                                    <Form.Item noStyle dependencies={['hotels', ['groups', name, 'extra_services']]}>
                                         {() => {
                                             const extraServices = form.getFieldValue(['groups', name, 'extra_services']) || [];
                                             const isHotelsChecked = extraServices.includes('Hotels');
                                             if (!isHotelsChecked) return null;
+
+                                            const topHotels = form.getFieldValue('hotels') || [];
+                                            if (topHotels.length === 0) {
+                                                return (
+                                                    <Alert
+                                                        message="Please add Accommodation Stays at the top level first."
+                                                        type="info"
+                                                        showIcon
+                                                        style={{ marginBottom: 16 }}
+                                                    />
+                                                );
+                                            }
+
                                             return (
-                                                <Card style={cardStyle} title="Accommodation Stays" size="small">
-                                                    <Form.List name={[name, 'hotels']} initialValue={[{}]}>
-                                                        {(hotelFields, { add: addHotel, remove: removeHotel }) => (
-                                                            <div>
-                                                                {hotelFields.map(({ key: hKey, name: hName, ...restHField }) => (
-                                                                    <Card
-                                                                        key={hKey}
-                                                                        style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
-                                                                        extra={
-                                                                            <Popconfirm
-                                                                                title="Remove Hotel Stay"
-                                                                                description="Are you sure you want to remove this hotel stay?"
-                                                                                onConfirm={() => removeHotel(hName)}
-                                                                                okText="Yes"
-                                                                                cancelText="No"
+                                                <Card style={cardStyle} title="Accommodation Room Configurations" size="small">
+                                                    {topHotels.map((topHotel, hIdx) => {
+                                                        const hotelObj = hotels.find(item => item._id === topHotel.hotel_id);
+                                                        const hotelLabel = hotelObj ? hotelObj.name : (topHotel.name || `Stay #${hIdx + 1}`);
+                                                        const checkInStr = topHotel.check_in ? dayjs(topHotel.check_in).format('DD-MM-YYYY') : '';
+                                                        const checkOutStr = topHotel.check_out ? dayjs(topHotel.check_out).format('DD-MM-YYYY') : '';
+                                                        const nights = topHotel.nights || 0;
+
+                                                        return (
+                                                            <Card
+                                                                key={hIdx}
+                                                                type="inner"
+                                                                title={
+                                                                    <span>
+                                                                        <strong>{hotelLabel}</strong>
+                                                                        {checkInStr && ` (${checkInStr} to ${checkOutStr}, ${nights} Nights)`}
+                                                                    </span>
+                                                                }
+                                                                style={{ marginBottom: 16 }}
+                                                            >
+                                                                <Form.List name={[name, 'hotels', hIdx, 'rooms']} initialValue={[{ noOfRooms: 1 }]}>
+                                                                    {(roomFields, { add: addRoom, remove: removeRoom }) => (
+                                                                        <div>
+                                                                            {roomFields.map(({ key: rKey, name: rName, ...restRField }) => (
+                                                                                <Row gutter={[8, 8]} key={rKey} align="middle" style={{ marginBottom: 8 }}>
+                                                                                    <Col xs={24} sm={8}>
+                                                                                        <Form.Item
+                                                                                            {...restRField}
+                                                                                            name={[rName, 'room_type']}
+                                                                                            style={{ marginBottom: 0 }}
+                                                                                            rules={[{ required: true, message: 'Required' }]}
+                                                                                        >
+                                                                                            <Select
+                                                                                                placeholder="Room Type"
+                                                                                                style={{ width: '100%' }}
+                                                                                                options={[
+                                                                                                    { label: "Single", value: "Single" },
+                                                                                                    { label: "Double", value: "Double" },
+                                                                                                    { label: "Triple", value: "Triple" },
+                                                                                                    { label: "Quad", value: "Quad" },
+                                                                                                    { label: "Suites", value: "Suites" },
+                                                                                                    { label: "Family Room", value: "Family Room" }
+                                                                                                ]}
+                                                                                            />
+                                                                                        </Form.Item>
+                                                                                    </Col>
+                                                                                    <Col xs={12} sm={6}>
+                                                                                        <Form.Item
+                                                                                            {...restRField}
+                                                                                            name={[rName, 'noOfRooms']}
+                                                                                            style={{ marginBottom: 0 }}
+                                                                                            rules={[{ required: true, message: 'Required' }]}
+                                                                                        >
+                                                                                            <InputNumber
+                                                                                                min={1}
+                                                                                                placeholder="Rooms"
+                                                                                                style={{ width: '100%' }}
+                                                                                            />
+                                                                                        </Form.Item>
+                                                                                    </Col>
+                                                                                    <Col xs={12} sm={8}>
+                                                                                        <Form.Item
+                                                                                            {...restRField}
+                                                                                            name={[rName, 'meal_plan']}
+                                                                                            style={{ marginBottom: 0 }}
+                                                                                            rules={[{ required: true, message: 'Required' }]}
+                                                                                        >
+                                                                                            <Select
+                                                                                                placeholder="Meal Plan"
+                                                                                                style={{ width: '100%' }}
+                                                                                                options={[
+                                                                                                    { label: "Room Only", value: "Room Only" },
+                                                                                                    { label: "Breakfast", value: "Breakfast" },
+                                                                                                    { label: "Half Board", value: "Half Board" },
+                                                                                                    { label: "Full Board", value: "Full Board" }
+                                                                                                ]}
+                                                                                            />
+                                                                                        </Form.Item>
+                                                                                    </Col>
+                                                                                    <Col xs={24} sm={2} style={{ textAlign: 'right' }}>
+                                                                                        {roomFields.length > 1 && (
+                                                                                            <Button
+                                                                                                type="text"
+                                                                                                danger
+                                                                                                icon={<DeleteOutlined />}
+                                                                                                onClick={() => removeRoom(rName)}
+                                                                                            />
+                                                                                        )}
+                                                                                    </Col>
+                                                                                </Row>
+                                                                            ))}
+                                                                            <Button
+                                                                                type="dashed"
+                                                                                icon={<PlusOutlined />}
+                                                                                onClick={() => addRoom()}
+                                                                                block
+                                                                                size="small"
+                                                                                style={{ marginTop: 8 }}
                                                                             >
-                                                                                <Button
-                                                                                    type="text"
-                                                                                    danger
-                                                                                    icon={<DeleteOutlined />}
-                                                                                />
-                                                                            </Popconfirm>
-                                                                        }
-                                                                    >
-                                                                        <Row gutter={[16, 16]}>
-                                                                            <Col xs={24} sm={12} md={6}>
-                                                                                <Form.Item
-                                                                                    {...restHField}
-                                                                                    label="Hotel"
-                                                                                    name={[hName, 'hotel_id']}
-                                                                                    style={{ marginBottom: 0 }}
-                                                                                    rules={[{ required: true, message: 'Please select a hotel' }]}
-                                                                                >
-                                                                                    <Select
-                                                                                        showSearch
-                                                                                        placeholder="-- Select Hotel --"
-                                                                                        optionFilterProp="label"
-                                                                                        filterOption={(input, option) => {
-                                                                                            const term = (input || '').toLowerCase();
-                                                                                            const labelMatches = (option?.label || '').toLowerCase().includes(term);
-                                                                                            const locationMatches = (option?.location || '').toLowerCase().includes(term);
-                                                                                            return labelMatches || locationMatches;
-                                                                                        }}
-                                                                                        options={hotelOptions}
-                                                                                    />
-                                                                                </Form.Item>
-                                                                            </Col>
-                                                                            <Col xs={24} sm={12} md={6}>
-                                                                                <Form.Item
-                                                                                    {...restHField}
-                                                                                    label="Check-in"
-                                                                                    name={[hName, 'check_in']}
-                                                                                    style={{ marginBottom: 0 }}
-                                                                                    rules={[{ required: true, message: 'Check-in is required' }]}
-                                                                                >
-                                                                                    <DatePicker
-                                                                                        format="DD-MM-YYYY"
-                                                                                        style={{ width: '100%' }}
-                                                                                        disabledDate={disabledCheckIn}
-                                                                                    />
-                                                                                </Form.Item>
-                                                                            </Col>
-                                                                            <Col xs={24} sm={12} md={6}>
-                                                                                <Form.Item
-                                                                                    {...restHField}
-                                                                                    label="Check-out"
-                                                                                    name={[hName, 'check_out']}
-                                                                                    style={{ marginBottom: 0 }}
-                                                                                    rules={[{ required: true, message: 'Check-out is required' }]}
-                                                                                >
-                                                                                    <DatePicker
-                                                                                        format="DD-MM-YYYY"
-                                                                                        style={{ width: '100%' }}
-                                                                                    />
-                                                                                </Form.Item>
-                                                                            </Col>
-                                                                            <Col xs={24} sm={12} md={6}>
-                                                                                <Form.Item
-                                                                                    {...restHField}
-                                                                                    label="Nights"
-                                                                                    name={[hName, 'nights']}
-                                                                                    style={{ marginBottom: 0 }}
-                                                                                >
-                                                                                    <InputNumber min={0} style={{ width: '100%' }} readOnly />
-                                                                                </Form.Item>
-                                                                            </Col>
-                                                                        </Row>
-
-                                                                        {/* Nested Rooms Configuration */}
-                                                                        <div style={{ marginTop: 16, padding: 12, borderRadius: 8, border: '1px dashed #d9d9d9', background: isDark ? '#1f1f1f' : '#fafafa' }}>
-                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                                                                <span style={{ fontWeight: 'bold' }}>Rooms Configuration</span>
-                                                                                <Button
-                                                                                    type="link"
-                                                                                    size="small"
-                                                                                    icon={<PlusOutlined />}
-                                                                                    onClick={() => addHotelRoom(name, hName)}
-                                                                                >
-                                                                                    Add Room Type
-                                                                                </Button>
-                                                                            </div>
-
-                                                                            <Form.List name={[hName, 'rooms']} initialValue={[{ noOfRooms: 1 }]}>
-                                                                                {(roomFields, { remove: removeRoom }) => (
-                                                                                    <div>
-                                                                                        {roomFields.map(({ key: rKey, name: rName, ...restRField }) => (
-                                                                                            <Row gutter={[8, 8]} key={rKey} align="middle" style={{ marginBottom: 8 }}>
-                                                                                                <Col xs={24} sm={8}>
-                                                                                                    <Form.Item
-                                                                                                        {...restRField}
-                                                                                                        name={[rName, 'room_type']}
-                                                                                                        style={{ marginBottom: 0 }}
-                                                                                                        rules={[{ required: true, message: 'Required' }]}
-                                                                                                    >
-                                                                                                        <Select
-                                                                                                            placeholder="Room Type"
-                                                                                                            style={{ width: '100%' }}
-                                                                                                            options={[
-                                                                                                                { label: "Single", value: "Single" },
-                                                                                                                { label: "Double", value: "Double" },
-                                                                                                                { label: "Triple", value: "Triple" },
-                                                                                                                { label: "Quad", value: "Quad" },
-                                                                                                                { label: "Suites", value: "Suites" },
-                                                                                                                { label: "Family Room", value: "Family Room" }
-                                                                                                            ]}
-                                                                                                        />
-                                                                                                    </Form.Item>
-                                                                                                </Col>
-                                                                                                <Col xs={12} sm={6}>
-                                                                                                    <Form.Item
-                                                                                                        {...restRField}
-                                                                                                        name={[rName, 'noOfRooms']}
-                                                                                                        style={{ marginBottom: 0 }}
-                                                                                                        rules={[{ required: true, message: 'Required' }]}
-                                                                                                    >
-                                                                                                        <InputNumber min={1} placeholder="No. of Rooms" style={{ width: '100%' }} />
-                                                                                                    </Form.Item>
-                                                                                                </Col>
-                                                                                                <Col xs={12} sm={8}>
-                                                                                                    <Form.Item
-                                                                                                        {...restRField}
-                                                                                                        name={[rName, 'meal_plan']}
-                                                                                                        style={{ marginBottom: 0 }}
-                                                                                                        rules={[{ required: true, message: 'Required' }]}
-                                                                                                    >
-                                                                                                        <Select
-                                                                                                            placeholder="Meal Plan"
-                                                                                                            style={{ width: '100%' }}
-                                                                                                            options={[
-                                                                                                                { label: "Room Only", value: "Room Only" },
-                                                                                                                { label: "Breakfast", value: "Breakfast" },
-                                                                                                                { label: "Half Board", value: "Half Board" },
-                                                                                                                { label: "Full Board", value: "Full Board" }
-                                                                                                            ]}
-                                                                                                        />
-                                                                                                    </Form.Item>
-                                                                                                </Col>
-                                                                                                <Col xs={24} sm={2} style={{ textAlign: 'right' }}>
-                                                                                                    <Popconfirm
-                                                                                                        title="Remove Room Type"
-                                                                                                        description="Are you sure you want to remove this room configuration?"
-                                                                                                        onConfirm={() => removeRoom(rName)}
-                                                                                                        okText="Yes"
-                                                                                                        cancelText="No"
-                                                                                                    >
-                                                                                                        <Button
-                                                                                                            type="text"
-                                                                                                            danger
-                                                                                                            icon={<DeleteOutlined />}
-                                                                                                        />
-                                                                                                    </Popconfirm>
-                                                                                                </Col>
-                                                                                            </Row>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                )}
-                                                                            </Form.List>
+                                                                                Add Room Type
+                                                                            </Button>
                                                                         </div>
-                                                                    </Card>
-                                                                ))}
-                                                                <Button
-                                                                    type="dashed"
-                                                                    icon={<PlusOutlined />}
-                                                                    onClick={() => addHotel()}
-                                                                    block
-                                                                >
-                                                                    Add Hotel Stay
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                    </Form.List>
+                                                                    )}
+                                                                </Form.List>
+                                                            </Card>
+                                                        );
+                                                    })}
                                                 </Card>
                                             );
                                         }}
