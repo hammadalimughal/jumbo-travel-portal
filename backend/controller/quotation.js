@@ -374,4 +374,61 @@ router.put('/update/:id', async (req, res) => {
     }
 });
 
+// GET public consent details (minimal fields)
+router.get('/consent/:id', async (req, res) => {
+    try {
+        const quotation = await Quotation.findById(req.params.id)
+            .select('quotation_no customer_name consent status')
+            .lean();
+        if (!quotation) {
+            return res.status(404).json({ success: false, error: 'Booking not found' });
+        }
+        res.json({ success: true, data: quotation });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
+// POST submit client consent
+router.post('/submit-consent/:id', async (req, res) => {
+    try {
+        const { clientName, signature } = req.body;
+        if (!clientName || !clientName.trim()) {
+            return res.json({ success: false, error: 'Full Name is required to submit consent.' });
+        }
+        if (!signature || !signature.trim()) {
+            return res.json({ success: false, error: 'Signature is required to submit consent.' });
+        }
+
+        const quotation = await Quotation.findById(req.params.id);
+        if (!quotation) {
+            return res.status(404).json({ success: false, error: 'Booking not found' });
+        }
+
+        // Update consent subdocument
+        quotation.consent = {
+            status: 'Agreed',
+            agreedAt: new Date(),
+            clientName: clientName || quotation.customer_name,
+            signature: signature || '',
+            ipAddress: req.ip || req.headers['x-forwarded-for'] || '',
+            expired: true
+        };
+
+        // Update tracking and status
+        if (quotation.status === 'Sent' || quotation.status === 'Draft') {
+            quotation.status = 'Confirmed';
+        }
+        if (!quotation.tracking) {
+            quotation.tracking = {};
+        }
+        quotation.tracking.responded_to_client = true;
+
+        await quotation.save();
+        res.json({ success: true, message: 'Consent submitted successfully', data: quotation });
+    } catch (error) {
+        res.json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;

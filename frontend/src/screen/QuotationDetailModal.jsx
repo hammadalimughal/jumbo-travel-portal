@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Descriptions, Table, Tag, Button, Spin, Typography, Divider, Row, Col, Space, Alert } from 'antd';
-import { DownloadOutlined, PrinterOutlined, ReloadOutlined, CloseOutlined } from '@ant-design/icons';
+import { DownloadOutlined, PrinterOutlined, ReloadOutlined, CloseOutlined, CopyOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 dayjs.extend(utc);
@@ -227,6 +227,19 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                         }}
                     >
                         Edit
+                    </Button>
+                ),
+                data && (
+                    <Button
+                        key="consent-copy"
+                        icon={<CopyOutlined />}
+                        onClick={() => {
+                            const link = `${window.location.origin}/consent/${data._id}`;
+                            navigator.clipboard.writeText(link);
+                            message.success('Consent link copied to clipboard!');
+                        }}
+                    >
+                        Copy Consent Link
                     </Button>
                 ),
                 <Button key="close" icon={<CloseOutlined />} onClick={onCancel}>

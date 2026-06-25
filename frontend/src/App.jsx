@@ -39,6 +39,8 @@ import PendingQuotations from './screen/PendingQuotations';
 import TrashedQuotations from './screen/TrashedQuotations';
 import NewGroupQuotation from './screen/NewGroupQuotation';
 import EditQuotation from './screen/EditQuotation';
+import ConsentForm from './screen/ConsentForm';
+import PublicBookingDetail from './screen/PublicBookingDetail';
 
 const items = [
   {
@@ -173,11 +175,18 @@ const App = () => {
     navigate(key)
   }
 
+  const isPublicClientRoute = location.pathname.startsWith('/consent/') || location.pathname.startsWith('/booking-detail/');
+
   return (
     <ConfigProvider
       theme={isDark ? darkTheme : lightTheme}
     >
-      {!isAuthenticated ? (
+      {isPublicClientRoute ? (
+        <Routes>
+          <Route path="/consent/:id" element={<ConsentForm isDark={isDark} />} />
+          <Route path="/booking-detail/:id" element={<PublicBookingDetail isDark={isDark} />} />
+        </Routes>
+      ) : !isAuthenticated ? (
          <Routes>
            <Route path="/login" element={<LogIn isDark={isDark} />} />
            {/* <Route path="/register" element={<Register isDark={isDark} />} /> */}

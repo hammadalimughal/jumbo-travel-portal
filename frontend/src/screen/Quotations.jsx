@@ -132,6 +132,9 @@ const Quotations = () => {
                     <Tag color={record.tracking?.responded_to_client ? 'purple' : 'red'} style={{ borderRadius: '12px' }}>
                         {record.tracking?.responded_to_client ? '● Responded' : '○ No Response'}
                     </Tag>
+                    <Tag color={record.consent?.status === 'Agreed' ? 'green' : 'orange'} style={{ borderRadius: '12px' }}>
+                        {record.consent?.status === 'Agreed' ? '● Consent: Agreed' : '○ Consent: Pending'}
+                    </Tag>
                     {record.tracking?.alert_sent && (
                         <Tag color="orange" style={{ borderRadius: '12px' }}>
                             Alert Sent
@@ -154,10 +157,17 @@ const Quotations = () => {
                     </Button>}
                     <Button info type="link"
                         onClick={() => openDetails(record._id)}
-                    //  icon={<FiTrash />} 
-                    //  loading={deletingId === record._id}
                     >
                         Detail
+                    </Button>
+                    <Button type="link"
+                        onClick={() => {
+                            const link = `${window.location.origin}/consent/${record._id}`;
+                            navigator.clipboard.writeText(link);
+                            messageApi.success('Consent link copied to clipboard!');
+                        }}
+                    >
+                        Consent Link
                     </Button>
                     <Button type="link"
                         onClick={() => navigate(`/edit-quotation/${record._id}`)}

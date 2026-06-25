@@ -95,6 +95,15 @@ const QuotationSchema = new mongoose.Schema({
     notes: { type: String },
     cancellation_policy: { type: String },
 
+    consent: {
+        status: { type: String, enum: ['Pending', 'Agreed'], default: 'Pending' },
+        agreedAt: { type: Date },
+        ipAddress: { type: String },
+        clientName: { type: String },
+        signature: { type: String },
+        expired: { type: Boolean, default: false }
+    },
+
     // Metadata for webversedesigns
     status: {
         type: String,
