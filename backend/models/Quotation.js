@@ -23,6 +23,7 @@ const RoomConfigSchema = new mongoose.Schema({
 
 const HotelBookingSchema = new mongoose.Schema({
     hotel_id: { type: mongoose.Schema.Types.ObjectId, ref: 'hotel' }, // Reference to your DataContext hotels
+    name: { type: String },
     check_in: { type: Date },
     check_out: { type: Date },
     nights: { type: Number, default: 0 },
@@ -94,6 +95,7 @@ const QuotationSchema = new mongoose.Schema({
     special_conditions: { type: String },
     notes: { type: String },
     cancellation_policy: { type: String },
+    extra_services: { type: [String], default: [] },
 
     consent: {
         status: { type: String, enum: ['Pending', 'Agreed'], default: 'Pending' },

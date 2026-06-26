@@ -58,7 +58,10 @@ router.get('/trash', async (req, res) => {
 router.get('/detail/:id', async (req, res) => {
     try {
         const { id } = req.params
-        const quotation = await Quotation.findById(id).populate({ path: 'hotels.hotel_id', model: 'hotel' }).lean()
+        const quotation = await Quotation.findById(id)
+            .populate({ path: 'hotels.hotel_id', model: 'hotel' })
+            .populate({ path: 'groups.hotels.hotel_id', model: 'hotel' })
+            .lean()
         res.json({
             success: true,
             data: quotation

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert, Popconfirm } from 'antd';
+import { Form, Input, InputNumber, Select, DatePicker, Button, Card, Row, Col, Space, message, Typography, Alert, Popconfirm, Checkbox } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
@@ -300,14 +300,20 @@ const NewQuotation = ({ isDark }) => {
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      const isHotelsValid = formHotels.every(h =>
-        h.hotel_id && h.check_in && h.check_out && h.nights >= 0 &&
-        h.rooms && h.rooms.length > 0 && h.rooms.every(r => r.room_type && r.meal_plan && r.noOfRooms > 0)
-      );
+      const extraServices = values.extra_services || [];
+      const hasAirTicket = extraServices.includes('Air Ticket');
+      const hasHotels = extraServices.includes('Hotels');
 
-      if (formHotels.length > 0 && !isHotelsValid) {
-        message.error("Please fill in all hotel details (Room types, Meal plans, Dates, Nights).");
-        return;
+      if (hasHotels) {
+        const isHotelsValid = formHotels.every(h =>
+          h.hotel_id && h.check_in && h.check_out && h.nights >= 0 &&
+          h.rooms && h.rooms.length > 0 && h.rooms.every(r => r.room_type && r.meal_plan && r.noOfRooms > 0)
+        );
+
+        if (formHotels.length > 0 && !isHotelsValid) {
+          message.error("Please fill in all hotel details (Room types, Meal plans, Dates, Nights).");
+          return;
+        }
       }
       // Format dates
       const rate = exchangeRates[selectedCurrency] || 1;
@@ -321,16 +327,18 @@ const NewQuotation = ({ isDark }) => {
         basePriceChild: Number(((values.priceChild || 0) / rate).toFixed(2)),
         basePriceInfant: Number(((values.priceInfant || 0) / rate).toFixed(2)),
         baseTotalPrice: Number(((values.totalPrice || 0) / rate).toFixed(2)),
-        flights: flights.map((f) => ({
+        flights: hasAirTicket ? flights.map((f) => ({
           ...f,
           date: f.date ? f.date.format('YYYY-MM-DD') : null,
           departureDateTime: f.departureDateTime ? f.departureDateTime.format('YYYY-MM-DD HH:mm:ss') : null,
           arrivalDateTime: f.arrivalDateTime ? f.arrivalDateTime.format('YYYY-MM-DD HH:mm:ss') : null
-        })),
-        hotels: formHotels.map(h => {
+        })) : [],
+        hotels: hasHotels ? formHotels.map(h => {
+          const hotelObj = hotels.find(item => item._id === h.hotel_id);
           const firstRoom = h.rooms?.[0] || {};
           return {
             hotel_id: h.hotel_id,
+            name: hotelObj ? hotelObj.name : 'Manual Entry',
             check_in: h.check_in ? h.check_in.format('YYYY-MM-DD') : null,
             check_out: h.check_out ? h.check_out.format('YYYY-MM-DD') : null,
             nights: h.nights,
@@ -343,7 +351,7 @@ const NewQuotation = ({ isDark }) => {
             noOfRooms: firstRoom.noOfRooms || 1,
             meal_plan: firstRoom.meal_plan
           };
-        })
+        }) : []
       };
 
       // Here you would send formData to your backend
@@ -424,6 +432,32 @@ const NewQuotation = ({ isDark }) => {
         onFinish={handleSubmit}
         autoComplete="off"
       >
+        {/* Global Settings */}
+        <Card style={cardStyle} title="Global Settings" size="small">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} md={8}>
+              <Form.Item
+                label="Quotation Currency"
+                name="currency"
+                initialValue="GBP"
+              >
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  onChange={handleCurrencyChange}
+                  options={Object.keys(exchangeRates).map((code) => {
+                    const sym = currencySymbols[code] ? ` (${currencySymbols[code]})` : '';
+                    return {
+                      value: code,
+                      label: `${code}${sym} - Rate: ${(exchangeRates[code] || 1).toFixed(4)}`
+                    };
+                  })}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Card>
+
         {/* Customer Details */}
         <Card style={cardStyle} title="Customer Details" size="small">
           <Row gutter={[16, 16]}>
@@ -455,6 +489,22 @@ const NewQuotation = ({ isDark }) => {
                 <Input placeholder="Enter phone number" />
               </Form.Item>
             </Col>
+            <Col xs={24}>
+              <Form.Item
+                label="Included Services"
+                name="extra_services"
+                initialValue={['Air Ticket', 'Hotels']}
+              >
+                <Checkbox.Group
+                  options={[
+                    { label: 'Air Ticket', value: 'Air Ticket' },
+                    { label: 'Hotels', value: 'Hotels' },
+                    { label: 'Transport', value: 'Transport' },
+                    { label: 'Umrah Visa', value: 'Umrah Visa' }
+                  ]}
+                />
+              </Form.Item>
+            </Col>
           </Row>
         </Card>
 
@@ -469,26 +519,6 @@ const NewQuotation = ({ isDark }) => {
               >
                 <DatePicker
                   format="DD-MM-YYYY" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} sm={12} md={8}>
-              <Form.Item
-                label="Quotation Currency"
-                name="currency"
-                initialValue="GBP"
-              >
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  onChange={handleCurrencyChange}
-                  options={Object.keys(exchangeRates).map((code) => {
-                    const sym = currencySymbols[code] ? ` (${currencySymbols[code]})` : '';
-                    return {
-                      value: code,
-                      label: `${code}${sym} - Rate: ${(exchangeRates[code] || 1).toFixed(4)}`
-                    };
-                  })}
-                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12} md={8}>
@@ -539,297 +569,313 @@ const NewQuotation = ({ isDark }) => {
         </Card>
 
         {/* Flight Details */}
-        <Card style={cardStyle} title="Flight Details" size="small">
-          <div style={{ marginBottom: 16 }}>
-            {flights.length === 0 ? (
-              <p style={{ color: '#999' }}>No flights added yet</p>
-            ) : (
-              flights.map((flight) => (
-                <Card key={flight.id} style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}>
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={12} md={5}>
-                      <Form.Item label="From" style={{ marginBottom: 0 }}>
-                        <Input
-                          placeholder="From"
-                          value={flight.from}
-                          onChange={(e) => updateFlight(flight.id, 'from', e.target.value)}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={5}>
-                      <Form.Item label="To" style={{ marginBottom: 0 }}>
-                        <Input
-                          placeholder="To"
-                          value={flight.to}
-                          onChange={(e) => updateFlight(flight.id, 'to', e.target.value)}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={5}>
-                      <Form.Item label="Date" style={{ marginBottom: 0 }}>
-                        <DatePicker
-                          format="DD-MM-YYYY HH:mm:ss"
-                          style={{ width: '100%' }}
-                          value={flight.date}
-                          onChange={(date) => updateFlight(flight.id, 'date', date)}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={5}>
-                      <Form.Item label="Airline" style={{ marginBottom: 0 }}>
-                        <Input
-                          placeholder="Airline"
-                          value={flight.airline}
-                          onChange={(e) => updateFlight(flight.id, 'airline', e.target.value)}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={4}>
-                      <Form.Item label=" " style={{ marginBottom: 0 }}>
-                        <Popconfirm
-                          title="Remove Flight Segment"
-                          description="Are you sure you want to remove this flight segment?"
-                          onConfirm={() => removeFlight(flight.id)}
-                          okText="Yes"
-                          cancelText="No"
-                        >
-                          <Button
-                            danger
-                            icon={<DeleteOutlined />}
-                          >
-                            Remove
-                          </Button>
-                        </Popconfirm>
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
-                    <Col xs={24} sm={12} md={12}>
-                      <Form.Item label="Departure Date & Time" style={{ marginBottom: 0 }}>
-                        <DatePicker
-                          format="DD-MM-YYYY HH:mm:ss"
-                          showTime
-                          style={{ width: '100%' }}
-                          value={flight.departureDateTime}
-                          onChange={(date) => updateFlight(flight.id, 'departureDateTime', date)}
-                          placeholder="Select departure date and time"
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12} md={12}>
-                      <Form.Item label="Arrival Date & Time" style={{ marginBottom: 0 }}>
-                        <DatePicker
-                          format="DD-MM-YYYY HH:mm:ss"
-                          showTime
-                          style={{ width: '100%' }}
-                          value={flight.arrivalDateTime}
-                          onChange={(date) => updateFlight(flight.id, 'arrivalDateTime', date)}
-                          placeholder="Select arrival date and time"
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                </Card>
-              ))
-            )}
-          </div>
-          <Button
-            type="dashed"
-            icon={<PlusOutlined />}
-            onClick={addFlight}
-            block
-          >
-            Add Flight Segment
-          </Button>
-        </Card>
+        <Form.Item noStyle dependencies={['extra_services']}>
+          {() => {
+            const extraServices = form.getFieldValue('extra_services') || [];
+            if (!extraServices.includes('Air Ticket')) return null;
+            return (
+              <Card style={cardStyle} title="Flight Details" size="small">
+                <div style={{ marginBottom: 16 }}>
+                  {flights.length === 0 ? (
+                    <p style={{ color: '#999' }}>No flights added yet</p>
+                  ) : (
+                    flights.map((flight) => (
+                      <Card key={flight.id} style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}>
+                        <Row gutter={[16, 16]}>
+                          <Col xs={24} sm={12} md={5}>
+                            <Form.Item label="From" style={{ marginBottom: 0 }}>
+                              <Input
+                                placeholder="From"
+                                value={flight.from}
+                                onChange={(e) => updateFlight(flight.id, 'from', e.target.value)}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12} md={5}>
+                            <Form.Item label="To" style={{ marginBottom: 0 }}>
+                              <Input
+                                placeholder="To"
+                                value={flight.to}
+                                onChange={(e) => updateFlight(flight.id, 'to', e.target.value)}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12} md={5}>
+                            <Form.Item label="Date" style={{ marginBottom: 0 }}>
+                              <DatePicker
+                                format="DD-MM-YYYY HH:mm:ss"
+                                style={{ width: '100%' }}
+                                value={flight.date}
+                                onChange={(date) => updateFlight(flight.id, 'date', date)}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12} md={5}>
+                            <Form.Item label="Airline" style={{ marginBottom: 0 }}>
+                              <Input
+                                placeholder="Airline"
+                                value={flight.airline}
+                                onChange={(e) => updateFlight(flight.id, 'airline', e.target.value)}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12} md={4}>
+                            <Form.Item label=" " style={{ marginBottom: 0 }}>
+                              <Popconfirm
+                                title="Remove Flight Segment"
+                                description="Are you sure you want to remove this flight segment?"
+                                onConfirm={() => removeFlight(flight.id)}
+                                okText="Yes"
+                                cancelText="No"
+                              >
+                                <Button
+                                  danger
+                                  icon={<DeleteOutlined />}
+                                >
+                                  Remove
+                                </Button>
+                              </Popconfirm>
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={[16, 16]} style={{ marginTop: 12 }}>
+                          <Col xs={24} sm={12} md={12}>
+                            <Form.Item label="Departure Date & Time" style={{ marginBottom: 0 }}>
+                              <DatePicker
+                                format="DD-MM-YYYY HH:mm:ss"
+                                showTime
+                                style={{ width: '100%' }}
+                                value={flight.departureDateTime}
+                                onChange={(date) => updateFlight(flight.id, 'departureDateTime', date)}
+                                placeholder="Select departure date and time"
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col xs={24} sm={12} md={12}>
+                            <Form.Item label="Arrival Date & Time" style={{ marginBottom: 0 }}>
+                              <DatePicker
+                                format="DD-MM-YYYY HH:mm:ss"
+                                showTime
+                                style={{ width: '100%' }}
+                                value={flight.arrivalDateTime}
+                                onChange={(date) => updateFlight(flight.id, 'arrivalDateTime', date)}
+                                placeholder="Select arrival date and time"
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </Card>
+                    ))
+                  )}
+                </div>
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={addFlight}
+                  block
+                >
+                  Add Flight Segment
+                </Button>
+              </Card>
+            );
+          }}
+        </Form.Item>
 
         {/* Hotel Details */}
-        <Card style={cardStyle} title="Hotel Details" size="small">
-          <div style={{ marginBottom: 16 }}>
-            {formHotels.length === 0 ? (
-              <p style={{ color: '#999' }}>No hotels added yet</p>
-            ) : (
-              formHotels.map((hotel) => (
-                <Card
-                  key={hotel.id}
-                  style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
-                  extra={
-                    <Popconfirm
-                      title="Remove Hotel Stay"
-                      description="Are you sure you want to remove this hotel stay?"
-                      onConfirm={() => removeHotel(hotel.id)}
-                      okText="Yes"
-                      cancelText="No"
-                    >
-                      <Button
-                        type="text"
-                        danger
-                        icon={<DeleteOutlined />}
-                      />
-                    </Popconfirm>
-                  }
-                >
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={12} md={6}>
-                      <Form.Item
-                        label="Hotel"
-                        style={{ marginBottom: 0 }}
-                        required
-                      >
-                        <Select
-                          showSearch
-                          placeholder="-- Select Hotel --"
-                          optionFilterProp="label"
-                          filterOption={(input, option) => {
-                            const term = (input || '').toLowerCase();
-                            const labelMatches = (option?.label || '').toLowerCase().includes(term);
-                            const locationMatches = (option?.location || '').toLowerCase().includes(term);
-                            return labelMatches || locationMatches;
-                          }}
-                          options={hotelOptions}
-                          value={hotel.hotel_id}
-                          onChange={(val) => updateHotel(hotel.id, 'hotel_id', val)}
-                        />
-                      </Form.Item>
-                    </Col>
-
-                    <Col xs={24} sm={12} md={6}>
-                      <Form.Item
-                        label="Check-in"
-                        style={{ marginBottom: 0 }}
-                        required
-                      >
-                        <DatePicker
-                          format="DD-MM-YYYY"
-                          style={{ width: '100%' }}
-                          disabledDate={disabledCheckIn}
-                          value={hotel.check_in}
-                          onChange={(date) => updateHotel(hotel.id, 'check_in', date)}
-                        />
-                      </Form.Item>
-                    </Col>
-
-                    <Col xs={24} sm={12} md={6}>
-                      <Form.Item
-                        label="Check-out"
-                        style={{ marginBottom: 0 }}
-                        required
-                      >
-                        <DatePicker
-                          format="DD-MM-YYYY"
-                          style={{ width: '100%' }}
-                          value={hotel.check_out}
-                          disabled={!hotel.check_in}
-                          disabledDate={disabledCheckOut(hotel.check_in)}
-                          onChange={(date) => updateHotel(hotel.id, 'check_out', date)}
-                        />
-                      </Form.Item>
-                    </Col>
-
-                    <Col xs={24} sm={12} md={6}>
-                      <Form.Item
-                        label="Nights"
-                        style={{ marginBottom: 0 }}
-                        required
-                      >
-                        <InputNumber
-                          min={0}
-                          style={{ width: '100%' }}
-                          placeholder="Number of nights"
-                          value={hotel.nights}
-                          onChange={(val) => updateHotel(hotel.id, 'nights', val)}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-
-                  <div style={{ marginTop: 16, padding: 12, borderRadius: 8, border: '1px dashed #d9d9d9', background: isDark ? '#1f1f1f' : '#fafafa' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontWeight: 'bold' }}>Rooms Configuration</span>
-                      <Button 
-                        type="link" 
-                        size="small" 
-                        icon={<PlusOutlined />} 
-                        onClick={() => addRoomToHotel(hotel.id)}
-                      >
-                        Add Room Type
-                      </Button>
-                    </div>
-
-                    {(hotel.rooms || []).map((room, rIdx) => (
-                      <Row gutter={[8, 8]} key={room.id || rIdx} align="middle" style={{ marginBottom: 8 }}>
-                        <Col xs={24} sm={8}>
-                          <Select
-                            placeholder="Room Type"
-                            style={{ width: '100%' }}
-                            value={room.room_type}
-                            onChange={(val) => updateRoomInHotel(hotel.id, room.id, 'room_type', val)}
-                            options={[
-                              { label: "Single", value: "Single" },
-                              { label: "Double", value: "Double" },
-                              { label: "Triple", value: "Triple" },
-                              { label: "Quad", value: "Quad" },
-                              { label: "Suites", value: "Suites" },
-                              { label: "Family Room", value: "Family Room" }
-                            ]}
-                          />
-                        </Col>
-                        <Col xs={12} sm={6}>
-                          <InputNumber
-                            min={1}
-                            placeholder="No. of Rooms"
-                            style={{ width: '100%' }}
-                            value={room.noOfRooms}
-                            onChange={(val) => updateRoomInHotel(hotel.id, room.id, 'noOfRooms', val)}
-                          />
-                        </Col>
-                        <Col xs={12} sm={8}>
-                          <Select
-                            placeholder="Meal Plan"
-                            style={{ width: '100%' }}
-                            value={room.meal_plan}
-                            onChange={(val) => updateRoomInHotel(hotel.id, room.id, 'meal_plan', val)}
-                            options={[
-                              { label: "Room Only", value: "Room Only" },
-                              { label: "Breakfast", value: "Breakfast" },
-                              { label: "Half Board", value: "Half Board" },
-                              { label: "Full Board", value: "Full Board" }
-                            ]}
-                          />
-                        </Col>
-                        <Col xs={24} sm={2} style={{ textAlign: 'right' }}>
+        <Form.Item noStyle dependencies={['extra_services']}>
+          {() => {
+            const extraServices = form.getFieldValue('extra_services') || [];
+            if (!extraServices.includes('Hotels')) return null;
+            return (
+              <Card style={cardStyle} title="Hotel Details" size="small">
+                <div style={{ marginBottom: 16 }}>
+                  {formHotels.length === 0 ? (
+                    <p style={{ color: '#999' }}>No hotels added yet</p>
+                  ) : (
+                    formHotels.map((hotel) => (
+                      <Card
+                        key={hotel.id}
+                        style={{ marginBottom: 12, backgroundColor: isDark ? '#262626' : '#fafafa' }}
+                        extra={
                           <Popconfirm
-                            title="Remove Room Type"
-                            description="Are you sure you want to remove this room configuration?"
-                            onConfirm={() => removeRoomFromHotel(hotel.id, room.id)}
+                            title="Remove Hotel Stay"
+                            description="Are you sure you want to remove this hotel stay?"
+                            onConfirm={() => removeHotel(hotel.id)}
                             okText="Yes"
                             cancelText="No"
-                            disabled={(hotel.rooms || []).length <= 1}
                           >
                             <Button
                               type="text"
                               danger
-                              disabled={(hotel.rooms || []).length <= 1}
                               icon={<DeleteOutlined />}
                             />
                           </Popconfirm>
-                        </Col>
-                      </Row>
-                    ))}
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
-          <Button
-            type="dashed"
-            icon={<PlusOutlined />}
-            onClick={addHotel}
-            block
-          >
-            Add Hotel Room
-          </Button>
-        </Card>
+                        }
+                      >
+                        <Row gutter={[16, 16]}>
+                          <Col xs={24} sm={12} md={6}>
+                            <Form.Item
+                              label="Hotel"
+                              style={{ marginBottom: 0 }}
+                              required
+                            >
+                              <Select
+                                showSearch
+                                placeholder="-- Select Hotel --"
+                                optionFilterProp="label"
+                                filterOption={(input, option) => {
+                                  const term = (input || '').toLowerCase();
+                                  const labelMatches = (option?.label || '').toLowerCase().includes(term);
+                                  const locationMatches = (option?.location || '').toLowerCase().includes(term);
+                                  return labelMatches || locationMatches;
+                                }}
+                                options={hotelOptions}
+                                value={hotel.hotel_id}
+                                onChange={(val) => updateHotel(hotel.id, 'hotel_id', val)}
+                              />
+                            </Form.Item>
+                          </Col>
+
+                          <Col xs={24} sm={12} md={6}>
+                            <Form.Item
+                              label="Check-in"
+                              style={{ marginBottom: 0 }}
+                              required
+                            >
+                              <DatePicker
+                                format="DD-MM-YYYY"
+                                style={{ width: '100%' }}
+                                disabledDate={disabledCheckIn}
+                                value={hotel.check_in}
+                                onChange={(date) => updateHotel(hotel.id, 'check_in', date)}
+                              />
+                            </Form.Item>
+                          </Col>
+
+                          <Col xs={24} sm={12} md={6}>
+                            <Form.Item
+                              label="Check-out"
+                              style={{ marginBottom: 0 }}
+                              required
+                            >
+                              <DatePicker
+                                format="DD-MM-YYYY"
+                                style={{ width: '100%' }}
+                                value={hotel.check_out}
+                                disabled={!hotel.check_in}
+                                disabledDate={disabledCheckOut(hotel.check_in)}
+                                onChange={(date) => updateHotel(hotel.id, 'check_out', date)}
+                              />
+                            </Form.Item>
+                          </Col>
+
+                          <Col xs={24} sm={12} md={6}>
+                            <Form.Item
+                              label="Nights"
+                              style={{ marginBottom: 0 }}
+                              required
+                            >
+                              <InputNumber
+                                min={0}
+                                style={{ width: '100%' }}
+                                placeholder="Number of nights"
+                                value={hotel.nights}
+                                onChange={(val) => updateHotel(hotel.id, 'nights', val)}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <div style={{ marginTop: 16, padding: 12, borderRadius: 8, border: '1px dashed #d9d9d9', background: isDark ? '#1f1f1f' : '#fafafa' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ fontWeight: 'bold' }}>Rooms Configuration</span>
+                            <Button 
+                              type="link" 
+                              size="small" 
+                              icon={<PlusOutlined />} 
+                              onClick={() => addRoomToHotel(hotel.id)}
+                            >
+                              Add Room Type
+                            </Button>
+                          </div>
+
+                          {(hotel.rooms || []).map((room, rIdx) => (
+                            <Row gutter={[8, 8]} key={room.id || rIdx} align="middle" style={{ marginBottom: 8 }}>
+                              <Col xs={24} sm={8}>
+                                <Select
+                                  placeholder="Room Type"
+                                  style={{ width: '100%' }}
+                                  value={room.room_type}
+                                  onChange={(val) => updateRoomInHotel(hotel.id, room.id, 'room_type', val)}
+                                  options={[
+                                    { label: "Single", value: "Single" },
+                                    { label: "Double", value: "Double" },
+                                    { label: "Triple", value: "Triple" },
+                                    { label: "Quad", value: "Quad" },
+                                    { label: "Suites", value: "Suites" },
+                                    { label: "Family Room", value: "Family Room" }
+                                  ]}
+                                />
+                              </Col>
+                              <Col xs={12} sm={6}>
+                                <InputNumber
+                                  min={1}
+                                  placeholder="No. of Rooms"
+                                  style={{ width: '100%' }}
+                                  value={room.noOfRooms}
+                                  onChange={(val) => updateRoomInHotel(hotel.id, room.id, 'noOfRooms', val)}
+                                />
+                              </Col>
+                              <Col xs={12} sm={8}>
+                                <Select
+                                  placeholder="Meal Plan"
+                                  style={{ width: '100%' }}
+                                  value={room.meal_plan}
+                                  onChange={(val) => updateRoomInHotel(hotel.id, room.id, 'meal_plan', val)}
+                                  options={[
+                                    { label: "Room Only", value: "Room Only" },
+                                    { label: "Breakfast", value: "Breakfast" },
+                                    { label: "Half Board", value: "Half Board" },
+                                    { label: "Full Board", value: "Full Board" }
+                                  ]}
+                                />
+                              </Col>
+                              <Col xs={24} sm={2} style={{ textAlign: 'right' }}>
+                                <Popconfirm
+                                  title="Remove Room Type"
+                                  description="Are you sure you want to remove this room configuration?"
+                                  onConfirm={() => removeRoomFromHotel(hotel.id, room.id)}
+                                  okText="Yes"
+                                  cancelText="No"
+                                  disabled={(hotel.rooms || []).length <= 1}
+                                >
+                                  <Button
+                                    type="text"
+                                    danger
+                                    disabled={(hotel.rooms || []).length <= 1}
+                                    icon={<DeleteOutlined />}
+                                  />
+                                </Popconfirm>
+                              </Col>
+                            </Row>
+                          ))}
+                        </div>
+                      </Card>
+                    ))
+                  )}
+                </div>
+                <Button
+                  type="dashed"
+                  icon={<PlusOutlined />}
+                  onClick={addHotel}
+                  block
+                >
+                  Add Hotel Room
+                </Button>
+              </Card>
+            );
+          }}
+        </Form.Item>
 
         {/* Pricing */}
         <Card title="Pricing" size="small" style={{ marginBottom: 24 }}>

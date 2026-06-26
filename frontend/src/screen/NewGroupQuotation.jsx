@@ -315,8 +315,8 @@ const NewGroupQuotation = ({ isDark }) => {
                     const parsedFlights = parsedFlightsData.map((flight, index) => ({
                         ...flight,
                         id: Date.now() + index,
-                        from: flight.origin?.city || flight.origin?.iata || '',
-                        to: flight.destination?.city || flight.destination?.iata || '',
+                        from: `${flight.origin?.city} (${flight.origin?.name})` || flight.origin?.iata || '',
+            to: `${flight.destination?.city} (${flight.destination?.name})` || flight.destination?.iata || '',
                         date: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
                         departureDateTime: flight.departureISO ? dayjs.utc(flight.departureISO) : null,
                         arrivalDateTime: flight.arrivalISO ? dayjs.utc(flight.arrivalISO) : null,

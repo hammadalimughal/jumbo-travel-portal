@@ -161,16 +161,20 @@ const Quotations = () => {
                         Detail
                     </Button>
                     <Button type="link"
-                        onClick={() => {
-                            const link = `${window.location.origin}/consent/${record._id}`;
-                            navigator.clipboard.writeText(link);
-                            messageApi.success('Consent link copied to clipboard!');
-                        }}
+                        // onClick={() => {
+                        //     const link = `${window.location.origin}/consent/${record._id}`;
+                        //     navigator.clipboard.writeText(link);
+                        //     messageApi.success('Consent link copied to clipboard!');
+                        // }}
+                        onClick={() => navigate(`/consent/${record._id}`)}
                     >
                         Consent Link
                     </Button>
                     <Button type="link"
-                        onClick={() => navigate(`/edit-quotation/${record._id}`)}
+                        onClick={() => {
+                            const link = `${window.location.origin}/consent/${record._id}`;
+                            navigate(`/edit-quotation/${record._id}`)
+                        }}
                     >
                         Edit
                     </Button>

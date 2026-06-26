@@ -129,6 +129,9 @@ const createPdfHtml = (data) => {
                 ${data.customer_email ? `<p><strong>Mail:</strong> ${data.customer_email}</p>` : ''}
                 ${data.customer_phone ? `<p><strong>Contact No:</strong> ${data.customer_phone}</p>` : ''}
                 <p>${data.adults} Adult(s), ${data.children} Child(ren), ${data.infants} Infant(s)</p>
+                ${data.extra_services && data.extra_services.length > 0 ? `
+                <p><strong>Services Included:</strong> ${data.extra_services.join(', ')}</p>
+                ` : ''}
             </div>
             <div class="col text-right" style="font-size: 12px; line-height: 1.6;">
                 <p><strong>Quotation No:</strong> ${data.quotation_no}</p>
@@ -139,6 +142,7 @@ const createPdfHtml = (data) => {
             </div>
         </div>
 
+        ${data.flights && data.flights.length > 0 ? `
         <div class="header-section">Flight Details</div>
         <table>
             <thead>
@@ -169,6 +173,7 @@ const createPdfHtml = (data) => {
             }).join('')}
             </tbody>
         </table>
+        ` : ''}
 
         
         ${data.bookingType === 'Group' && data.groups && data.groups.length > 0 ? `
@@ -262,7 +267,7 @@ const createPdfHtml = (data) => {
                 </div>
                 `;
             }).join('')}
-        ` : `
+        ` : (data.hotels && data.hotels.length > 0 ? `
             <div class="header-section" style="margin-top: 30px;">Hotel Details</div>
             <table>
                 <tbody>
@@ -297,7 +302,7 @@ const createPdfHtml = (data) => {
                     }).join('')}
                 </tbody>
             </table>
-        `}
+        ` : '')}
 
         <div style="margin-top: 30px;">
             <table class="price-table">
