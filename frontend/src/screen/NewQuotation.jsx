@@ -500,7 +500,10 @@ const NewQuotation = ({ isDark }) => {
                     { label: 'Air Ticket', value: 'Air Ticket' },
                     { label: 'Hotels', value: 'Hotels' },
                     { label: 'Transport', value: 'Transport' },
-                    { label: 'Umrah Visa', value: 'Umrah Visa' }
+                    { label: 'Umrah Visa', value: 'Umrah Visa' },
+                    { label: 'E-Visa', value: 'E-Visa' },
+                    { label: 'Umrah Guide', value: 'Umrah Guide' },
+                    { label: 'Ziarah', value: 'Ziarah' },
                   ]}
                 />
               </Form.Item>
@@ -789,10 +792,10 @@ const NewQuotation = ({ isDark }) => {
                         <div style={{ marginTop: 16, padding: 12, borderRadius: 8, border: '1px dashed #d9d9d9', background: isDark ? '#1f1f1f' : '#fafafa' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                             <span style={{ fontWeight: 'bold' }}>Rooms Configuration</span>
-                            <Button 
-                              type="link" 
-                              size="small" 
-                              icon={<PlusOutlined />} 
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<PlusOutlined />}
                               onClick={() => addRoomToHotel(hotel.id)}
                             >
                               Add Room Type

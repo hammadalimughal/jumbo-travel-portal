@@ -447,7 +447,7 @@ const QuotationDetailModal = ({ open, onCancel, quotationId, fetchQuotations }) 
                                     <Space direction="vertical" align="end" size={0}>
                                         {/* <Text type="secondary">Average Price Per Person: £{(data.pricing.totalPrice / (data.passenger_counts.adults + data.passenger_counts.children)).toFixed(2)}</Text> */}
                                         <Title level={4} style={{ margin: 0, }}>
-                                            Total Package Price: {getSymbol(data.pricing.currency)}{data.pricing.totalPrice.toFixed(2)}
+                                            Total Package Price: {getSymbol(data.pricing.currency)}{data.pricing.totalPrice.toFixed(2)} ({data.pricing.currency})
                                         </Title>
                                     </Space>
                                 </Col>

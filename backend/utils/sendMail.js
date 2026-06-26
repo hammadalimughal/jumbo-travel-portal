@@ -11,7 +11,7 @@ const sendMail = async (to, subject, html) => {
                 user: 'noreply@betatestinglink.com',
                 pass: 'zU7VMdddbkPD9X7yL4Dt'
             },
-            tls: {
+            tls: {  
                 // Do not fail on invalid certs
                 rejectUnauthorized: false
             }

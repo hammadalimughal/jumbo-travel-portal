@@ -151,11 +151,23 @@ const PublicBookingDetail = ({ isDark }) => {
         <div style={pageStyle}>
             <div style={containerStyle}>
                 
+                {/* Logo Section */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
+                    <img src="/logo.png" alt="Jumbo Travels Logo" style={{ maxHeight: '70px', width: 'auto', objectFit: 'contain' }} />
+                </div>
+
                 {/* Header Section */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
                     <div>
                         <Title level={2} style={{ margin: 0 }}>Travel Itinerary & Booking Details</Title>
-                        <Text type="secondary">Quotation Reference: <b>{data.quotation_no}</b></Text>
+                        <Space direction="horizontal" style={{ marginTop: '4px' }} split={<Divider type="vertical" />}>
+                            <Text type="secondary">Quotation Reference: <b>{data.quotation_no}</b></Text>
+                            {data.pricing?.totalPrice !== undefined && (
+                                <Text type="secondary">
+                                    Total Cost: <b style={{ color: '#52c41a' }}>{getSymbol(data.pricing.currency)}{data.pricing.totalPrice.toFixed(2)}</b> ({data.pricing.currency})
+                                </Text>
+                            )}
+                        </Space>
                     </div>
                     <Space size="middle">
                         <Tag color={isConsentAgreed ? 'success' : 'warning'} style={{ padding: '4px 12px', fontSize: '14px', borderRadius: '4px' }}>

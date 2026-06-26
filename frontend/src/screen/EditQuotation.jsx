@@ -144,7 +144,7 @@ const EditQuotation = ({ isDark }) => {
       const adults = Number(group.adults) || 0;
       const children = Number(group.children) || 0;
       const infants = Number(group.infants) || 0;
-      
+
       totalAdults += adults;
       totalChildren += children;
       totalInfants += infants;
@@ -185,7 +185,7 @@ const EditQuotation = ({ isDark }) => {
         const checkOutStr = topHotel.check_out ? dayjs(topHotel.check_out).format('YYYY-MM-DD') : 'N/A';
         const nights = Number(topHotel.nights) || 0;
         const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
-        
+
         if (!hotelSummaryMap[key]) {
           hotelSummaryMap[key] = {
             key,
@@ -202,7 +202,7 @@ const EditQuotation = ({ isDark }) => {
             totalRooms: 0
           };
         }
-        
+
         if (h.rooms && h.rooms.length > 0) {
           h.rooms.forEach(r => {
             const rType = r.room_type || 'Single';
@@ -378,7 +378,7 @@ const EditQuotation = ({ isDark }) => {
                 };
               });
               form.setFieldsValue({ groups: formattedGroups });
-              
+
               // Calculate initial summary directly from database values to avoid stale closure / race conditions
               const adultPrice = Number(qData.pricing?.priceAdult) || 0;
               const childPrice = Number(qData.pricing?.priceChild) || 0;
@@ -418,14 +418,14 @@ const EditQuotation = ({ isDark }) => {
                   (group.hotels || []).forEach((h, hIdx) => {
                     const topHotel = formattedTopHotels[hIdx];
                     if (!topHotel || (!topHotel.hotel_id && !topHotel.name)) return;
-                    
+
                     const hotelObj = hotels.find(item => item._id === topHotel.hotel_id);
                     const hotelName = hotelObj ? hotelObj.name : (topHotel.name || 'Manual Entry');
                     const checkInStr = topHotel.check_in ? dayjs(topHotel.check_in).format('YYYY-MM-DD') : 'N/A';
                     const checkOutStr = topHotel.check_out ? dayjs(topHotel.check_out).format('YYYY-MM-DD') : 'N/A';
                     const nights = Number(topHotel.nights) || 0;
                     const key = `${hotelName}_${checkInStr}_${checkOutStr}_${nights}`;
-                    
+
                     if (!hotelSummaryMap[key]) {
                       hotelSummaryMap[key] = {
                         key,
@@ -442,7 +442,7 @@ const EditQuotation = ({ isDark }) => {
                         totalRooms: 0
                       };
                     }
-                    
+
                     if (h.rooms && h.rooms.length > 0) {
                       h.rooms.forEach(r => {
                         const rType = r.room_type || 'Single';
@@ -976,7 +976,7 @@ const EditQuotation = ({ isDark }) => {
           </Button>
         </div>
       </Card>
-      
+
       <Form
         form={form}
         layout="vertical"
@@ -1082,7 +1082,10 @@ const EditQuotation = ({ isDark }) => {
                         { label: 'Air Ticket', value: 'Air Ticket' },
                         { label: 'Hotels', value: 'Hotels' },
                         { label: 'Transport', value: 'Transport' },
-                        { label: 'Umrah Visa', value: 'Umrah Visa' }
+                        { label: 'Umrah Visa', value: 'Umrah Visa' },
+                        { label: 'E-Visa', value: 'E-Visa' },
+                        { label: 'Umrah Guide', value: 'Umrah Guide' },
+                        { label: 'Ziarah', value: 'Ziarah' },
                       ]}
                     />
                   </Form.Item>
@@ -1503,8 +1506,12 @@ const EditQuotation = ({ isDark }) => {
                                   { label: 'Air Ticket', value: 'Air Ticket' },
                                   { label: 'Hotels', value: 'Hotels' },
                                   { label: 'Transport', value: 'Transport' },
-                                  { label: 'Umrah Visa', value: 'Umrah Visa' }
-                                ]}
+                                  { label: 'Umrah Visa', value: 'Umrah Visa' },
+                                  { label: 'E-Visa', value: 'E-Visa' },
+                                  { label: 'Umrah Guide', value: 'Umrah Guide' },
+                                  { label: 'Ziarah', value: 'Ziarah' },
+                                ]
+                                }
                               />
                             </Form.Item>
                           </Col>
@@ -1767,10 +1774,10 @@ const EditQuotation = ({ isDark }) => {
                             <div style={{ marginTop: 16, padding: 12, borderRadius: 8, border: '1px dashed #d9d9d9', background: isDark ? '#1f1f1f' : '#fafafa' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                                 <span style={{ fontWeight: 'bold' }}>Rooms Configuration</span>
-                                <Button 
-                                  type="link" 
-                                  size="small" 
-                                  icon={<PlusOutlined />} 
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  icon={<PlusOutlined />}
                                   onClick={() => addRoomToHotel(hotel.id)}
                                 >
                                   Add Room Type

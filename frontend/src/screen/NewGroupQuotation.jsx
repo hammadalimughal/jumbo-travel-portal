@@ -848,7 +848,10 @@ const NewGroupQuotation = ({ isDark }) => {
                                                             { label: 'Air Ticket', value: 'Air Ticket' },
                                                             { label: 'Hotels', value: 'Hotels' },
                                                             { label: 'Transport', value: 'Transport' },
-                                                            { label: 'Umrah Visa', value: 'Umrah Visa' }
+                                                            { label: 'Umrah Visa', value: 'Umrah Visa' },
+                                                            { label: 'E-Visa', value: 'E-Visa' },
+                                                            { label: 'Umrah Guide', value: 'Umrah Guide' },
+                                                            { label: 'Ziarah', value: 'Ziarah' },
                                                         ]}
                                                     />
                                                 </Form.Item>

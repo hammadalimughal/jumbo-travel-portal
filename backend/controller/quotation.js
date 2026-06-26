@@ -381,7 +381,7 @@ router.put('/update/:id', async (req, res) => {
 router.get('/consent/:id', async (req, res) => {
     try {
         const quotation = await Quotation.findById(req.params.id)
-            .select('quotation_no customer_name consent status')
+            .select('quotation_no customer_name consent status pricing')
             .lean();
         if (!quotation) {
             return res.status(404).json({ success: false, error: 'Booking not found' });

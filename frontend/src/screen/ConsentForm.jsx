@@ -8,6 +8,11 @@ import dayjs from 'dayjs';
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
 
+const getSymbol = (currency) => {
+    const symbols = { USD: '$', EUR: '€', GBP: '£', AED: 'AED', SAR: 'SAR' };
+    return symbols[currency] || currency || '£';
+};
+
 const ConsentForm = ({ isDark }) => {
     const { id } = useParams();
     const [loading, setLoading] = useState(true);
@@ -119,11 +124,27 @@ const ConsentForm = ({ isDark }) => {
         <div style={containerStyle}>
             <Card style={cardStyle}>
                 <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                    <div style={{ display: 'inline-block', padding: '12px', borderRadius: '50%', background: isDark ? '#262626' : '#e6f7ff', marginBottom: '16px' }}>
-                        <SignatureOutlined style={{ fontSize: '32px', color: '#1890ff' }} />
+                    <div style={{ marginBottom: '20px' }}>
+                        <img src="/logo.png" alt="Jumbo Travels Logo" style={{ maxHeight: '60px', width: 'auto', objectFit: 'contain' }} />
                     </div>
                     <Title level={3} style={{ margin: 0 }}>Booking Consent Agreement</Title>
-                    <Text type="secondary">Quotation Reference: <b>{quotation?.quotation_no}</b></Text>
+                    <Text type="secondary" style={{ display: 'block', marginBottom: '8px' }}>
+                        Quotation Reference: <b>{quotation?.quotation_no}</b>
+                    </Text>
+                    {quotation?.pricing?.totalPrice !== undefined && (
+                        <div style={{ 
+                            display: 'inline-block', 
+                            padding: '6px 16px', 
+                            borderRadius: '20px', 
+                            background: isDark ? 'rgba(82, 196, 26, 0.15)' : 'rgba(82, 196, 26, 0.1)', 
+                            border: '1px solid rgba(82, 196, 26, 0.3)',
+                            marginTop: '4px'
+                        }}>
+                            <Text strong style={{ color: '#52c41a', fontSize: '15px' }}>
+                                Total Package Cost: {getSymbol(quotation.pricing.currency)}{quotation.pricing.totalPrice.toFixed(2)} ({quotation.pricing.currency})
+                            </Text>
+                        </div>
+                    )}
                 </div>
 
                 {isAgreed ? (
